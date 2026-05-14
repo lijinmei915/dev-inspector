@@ -1,0 +1,42 @@
+{
+  "name": "@lijinmei-810/dev-inspector",
+  "version": "0.1.0",
+  "description": "可视化 CSS 检查与编辑工具（React 组件）",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./style.css": "./dist/dev-inspector.css"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "dependencies": {
+    "lucide-react": "^0.546.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": ["devtools", "css-inspector", "react", "vite"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lijinmei915/dev-inspector.git",
+    "directory": "packages/dev-inspector"
+  }
+}

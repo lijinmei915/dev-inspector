@@ -1,0 +1,20 @@
+{
+  "name": "dev-inspector-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "description": "可视化 CSS 检查与编辑工具 - monorepo 根",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^25.7.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tsup": "^8.3.5",
+    "typescript": "~5.8.2"
+  }
+}
