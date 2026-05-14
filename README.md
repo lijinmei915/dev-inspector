@@ -1,77 +1,42 @@
-# Dev Inspector
+# 项目说明
 
-可视化 CSS 检查与编辑工具——在浏览器里实时拾取元素、调样式、对照设计 token，开发模式下的"动手设计"小帮手。
+> 本文件是安装 Project OS 后给目标项目的 README 模板。
+> 请按当前项目真实情况填写，不要保留源仓库自己的历史描述。
+>
+> 用途：回答“这是什么项目、怎么开始、关键文档在哪”。
+> 什么时候更新：安装方式、入口说明、对外使用方式、关键路径变化时。
+> 不要写什么：AI 运行细则、当前交接、详细历史、内部路由实现。
 
-## 安装
+## 项目定位
 
-```bash
-npm install -D @lijinmei-810/dev-inspector @lijinmei-810/dev-inspector-vite
+- 项目名：`TODO`
+- 一句话定位：`TODO`
+- 目标用户：`TODO`
+- 解决的问题：`TODO`
+
+## 当前阶段
+
+- 当前阶段：`TODO`
+- 当前状态：`TODO`
+- 当前优先级：`TODO`
+
+## 协作文档
+
+- AI 运行规则：`AGENTS.md`
+- 当前项目状态：`PROJECT.md`
+- 当前交接上下文：`HANDOFF.md`
+- 结构性变更记录：`docs/CHANGELOG.md`
+
+## 开始方式
+
+直接对 AI 说：
+
+```txt
+帮我初始化这个项目
 ```
 
-## 用法
+或：
 
-**1. `vite.config.ts`**
-
-```ts
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import path from 'node:path';
-import {
-  createDevHandoffPlugin,
-  createDevInspectorServerPlugin,
-} from '@lijinmei-810/dev-inspector-vite';
-
-export default defineConfig({
-  plugins: [
-    react(),
-    createDevInspectorServerPlugin({
-      projectRoot: __dirname,
-      cssFile: path.resolve(__dirname, 'src/styles/index.css'),
-      styleInboxJsonFile: path.resolve(__dirname, 'docs/style-inbox.json'),
-      styleInboxMarkdownFile: path.resolve(__dirname, 'docs/STYLE_INBOX.md'),
-      commitTargetFile: 'src/styles/dev-overrides.css',
-    }),
-    createDevHandoffPlugin(__dirname),
-  ],
-});
+```txt
+这个项目有点乱，帮我接管一下
 ```
-
-**2. `src/main.tsx`**
-
-```ts
-import '@lijinmei-810/dev-inspector/style.css';
-
-if (import.meta.env.DEV) {
-  import('@lijinmei-810/dev-inspector').then(({ mountDevInspector }) => {
-    mountDevInspector({
-      tokens: {
-        // 把你项目的设计 token 注入进去
-        colorPalette: YOUR_COLOR_PALETTE,
-        tokenLabels: YOUR_TOKEN_LABELS,
-        // ... 其余可选
-      },
-    });
-  });
-}
-```
-
-## Monorepo 结构
-
-```
-dev-inspector/
-├── packages/
-│   ├── dev-inspector/        @lijinmei-810/dev-inspector
-│   └── dev-inspector-vite/   @lijinmei-810/dev-inspector-vite
-```
-
-## 开发
-
-```bash
-npm install
-npm run build         # 两个包都打包
-npm run typecheck     # 全仓类型检查
-```
-
-## License
-
-MIT
