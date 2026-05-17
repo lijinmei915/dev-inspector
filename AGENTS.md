@@ -29,6 +29,22 @@
 
 冲突处理：越靠近当前任务、越具体的规则优先。
 
+## AI 文档读取顺序
+
+AI 接手本仓库时，默认按下面顺序读取和判断，不要跳过文档路由直接改文件：
+
+1. `AGENTS.md`：先确认 AI 行为规则、入口控制、禁止行为和文档更新规则。
+2. `docs/DOCUMENTATION.md`：判断信息应该落到哪份文档，避免 `PROJECT`、`HANDOFF`、`PRODUCT_PLAN`、`docs/product/*` 串层。
+3. `PROJECT.md`：确认当前项目状态、模块边界、SSOT 索引和下一步重点。
+4. `docs/product/README.md`：如果涉及产品规则，先看产品文档入口，再进入 `MRD`、`PRD`、`INTERACTION_SPEC`、`DATA_DICTIONARY` 或 `BUSINESS_RULES`。
+5. `docs/design/component-index.md`：如果涉及组件、primitive、Inspector 模块交互或相同元素规则，看这里。
+6. `docs/design/tokens.md`：如果涉及 token、预设、自定义、空值、阴影、间距等设计规则，看这里。
+7. `docs/DECISIONS.md`：如果需要理解为什么这么定，看决策原因；不要把当前执行清单写进这里。
+8. `HANDOFF.md`：最后看当前交接、风险、刚完成内容和下一步执行事项。
+
+中文说明：
+`AGENTS.md` 管行动，`docs/DOCUMENTATION.md` 管落档，`PROJECT.md` 管现状，`docs/product/*` 管产品，`docs/design/*` 管交互和设计规则，`DECISIONS.md` 管原因，`HANDOFF.md` 管接手。
+
 ## 入口控制
 
 - 所有项目相关请求优先进入 `project-setup`

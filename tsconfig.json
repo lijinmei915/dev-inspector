@@ -11,7 +11,12 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "paths": {
+      "@lijinmei-810/dev-inspector": ["packages/dev-inspector/src/index.ts"],
+      "@lijinmei-810/dev-inspector/style.css": ["packages/dev-inspector/src/dev-inspector.css"]
+    }
   },
   "include": ["packages/*/src/**/*"]
 }

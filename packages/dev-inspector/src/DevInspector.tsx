@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { CircleHelp } from 'lucide-react';
+import { CircleHelp, Minus, Trash2 } from 'lucide-react';
 import './dev-inspector.css';
 import { useDevInspectorConfig } from './DevInspectorProvider';
 import type { DevInspectorTokenConfig } from './config';
-import type { PaletteColor, PaletteGroup } from './config';
+import type { ContainerStyleOption, PaletteColor, PaletteGroup, TypographyStyleOption } from './config';
 
 function calcDropPos(rect: DOMRect, dropHeight = 280): { top: number; left: number } {
   const spaceBelow = window.innerHeight - rect.bottom;
@@ -39,6 +39,58 @@ function getTypographyToken(
   ) ?? null;
 }
 
+function getTypographyStyles(tokens: DevInspectorTokenConfig): TypographyStyleOption[] {
+  return tokens.typographyStyles ?? [];
+}
+
+function getContainerStyles(tokens: DevInspectorTokenConfig): ContainerStyleOption[] {
+  return tokens.containerStyles ?? tokens.borderStyles ?? [];
+}
+
+function getTypographyStyle(
+  fontSize: string,
+  fontWeight: string,
+  color: string,
+  typographyStyles: TypographyStyleOption[],
+  typographyTokens: DevInspectorTokenConfig['typographyTokens'],
+): TypographyStyleOption | null {
+  const matchedToken = getTypographyToken(fontSize, fontWeight, color, typographyTokens);
+  const normalizedColor = normalizeColor(color);
+
+  return (matchedToken
+    ? typographyStyles.find(style => style.key === matchedToken.key)
+    : null)
+    ?? typographyStyles.find(style =>
+      style.value === fontSize.trim()
+      && style.fontWeight === fontWeight.trim()
+      && normalizeColor(style.color) === normalizedColor,
+    )
+    ?? null;
+}
+
+function getContainerStyle(
+  backgroundColor: string,
+  borderWidth: string,
+  borderStyle: string,
+  borderColor: string,
+  borderRadius: string,
+  containerStyles: ContainerStyleOption[],
+): ContainerStyleOption | null {
+  const normalizedBackground = normalizeColor(backgroundColor || 'transparent');
+  const normalizedColor = normalizeColor(borderColor || 'transparent');
+  const normalizedWidth = borderWidth.trim();
+  const normalizedStyle = borderStyle.trim();
+  const normalizedRadius = borderRadius.trim();
+
+  return containerStyles.find(style =>
+    normalizeColor(style.backgroundColor) === normalizedBackground
+    && style.borderWidth === normalizedWidth
+    && style.borderStyle === normalizedStyle
+    && normalizeColor(style.borderColor) === normalizedColor
+    && style.borderRadius === normalizedRadius,
+  ) ?? null;
+}
+
 const BORDER_STYLE_OPTIONS = [
   { label: '─', value: 'solid',  title: '实线' },
   { label: '┄', value: 'dashed', title: '虚线' },
@@ -64,6 +116,15 @@ type StyleIntentSummary = {
   latestPending: StyleIntentQueueEntry | null;
   pendingEntries: StyleIntentQueueEntry[];
 };
+type LocalDraftChange = { prop: string; from: string; val: string };
+type LocalDraftEntry = {
+  key: string;
+  selector: string;
+  targetLabel: string;
+  scopeLabel: string;
+  changes: LocalDraftChange[];
+  updatedAt: number;
+};
 
 const SIZE_OPTIONS: { label: string; mode: SizeMode; value?: string }[] = [
   { label: 'Fill', mode: 'fill', value: '100%' },
@@ -79,9 +140,11 @@ function rgbToHex(rgb: string): string {
 }
 
 function normalizeColor(val: string): string {
+  const raw = val.trim();
+  if (raw === 'transparent' || /^rgba\(\s*0,\s*0,\s*0,\s*0\s*\)$/i.test(raw)) return 'transparent';
   const m = val.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
   if (m) return '#' + [m[1],m[2],m[3]].map(n=>parseInt(n).toString(16).padStart(2,'0')).join('');
-  return val.trim();
+  return raw;
 }
 
 function formatColorDisplay(val: string): string {
@@ -121,6 +184,62 @@ function formatShadowDisplay(val: string): string {
   return val.replace(/\s+/g, ' ');
 }
 
+type ShadowParts = {
+  x: string;
+  y: string;
+  blur: string;
+  spread: string;
+  color: string;
+};
+
+const DEFAULT_SHADOW_PARTS: ShadowParts = {
+  x: '0px',
+  y: '14px',
+  blur: '42px',
+  spread: '0px',
+  color: 'rgba(15,23,42,0.08)',
+};
+
+const EMPTY_CUSTOM_SHADOW_PARTS: ShadowParts = {
+  x: '0px',
+  y: '0px',
+  blur: '0px',
+  spread: '0px',
+  color: 'rgba(15,23,42,0)',
+};
+
+function normalizeShadowLengthInput(input: string): string {
+  const raw = input.trim();
+  if (!raw) return '0px';
+  if (/^-?\d+(?:\.\d+)?$/.test(raw)) return `${raw}px`;
+  return raw;
+}
+
+function parseShadowParts(value: string): ShadowParts {
+  const raw = (value || 'none').trim();
+  if (!raw || raw === 'none') return { ...DEFAULT_SHADOW_PARTS };
+  const colorPattern = /(rgba?\([^)]+\)|hsla?\([^)]+\)|#[0-9a-f]{3,8}\b|var\([^)]+\)|\b(?:black|white|transparent)\b)/i;
+  const colorMatch = raw.match(colorPattern);
+  const color = colorMatch?.[0] ?? DEFAULT_SHADOW_PARTS.color;
+  const remainder = raw
+    .replace(colorPattern, '')
+    .replace(/\binset\b/i, '')
+    .split(/\s*,\s*/)[0]
+    .trim();
+  const parts = remainder.match(/-?\d*\.?\d+(?:px|rem|em|%)?/g) ?? [];
+  return {
+    x: normalizeShadowLengthInput(parts[0] ?? DEFAULT_SHADOW_PARTS.x),
+    y: normalizeShadowLengthInput(parts[1] ?? DEFAULT_SHADOW_PARTS.y),
+    blur: normalizeShadowLengthInput(parts[2] ?? DEFAULT_SHADOW_PARTS.blur),
+    spread: normalizeShadowLengthInput(parts[3] ?? DEFAULT_SHADOW_PARTS.spread),
+    color,
+  };
+}
+
+function buildShadowValue(parts: ShadowParts): string {
+  return `${normalizeShadowLengthInput(parts.x)} ${normalizeShadowLengthInput(parts.y)} ${normalizeShadowLengthInput(parts.blur)} ${normalizeShadowLengthInput(parts.spread)} ${parts.color}`;
+}
+
 function getShadowDisplay(
   val: string,
   authoredVal: string,
@@ -146,6 +265,17 @@ function getShadowDisplay(
   };
 }
 
+function getShadowChangeDisplay(
+  val: string,
+  authoredVal: string,
+  shadowTokens: DevInspectorTokenConfig['shadowTokens'],
+): string {
+  const display = getShadowDisplay(val, authoredVal, shadowTokens);
+  if (display.label === '无') return display.label;
+  if (display.isHardcoded) return `${display.label}（${display.sub}）`;
+  return display.label;
+}
+
 function getClasses(el: Element): string[] {
   return Array.from(el.classList).filter(c => !c.startsWith('di-'));
 }
@@ -168,12 +298,37 @@ function isStateClass(className: string): boolean {
     || className.endsWith('--disabled');
 }
 
+function getPrimitiveClasses(el: Element): string[] {
+  const classes = getClasses(el);
+  if (el.tagName.toLowerCase() === 'svg' && classes.includes('lucide')) {
+    return ['lucide'];
+  }
+  return [];
+}
+
 function getComponentClasses(el: Element): string[] {
-  const componentClasses = getClasses(el).filter(c =>
+  const primitiveClasses = getPrimitiveClasses(el);
+  if (primitiveClasses.length) return primitiveClasses;
+
+  const classes = getClasses(el);
+  const cardBaseClass = classes.find(className =>
+    /(^|[-_])card([-_]|$)/i.test(className)
+    && !className.includes('--'),
+  );
+  if (cardBaseClass) return [cardBaseClass];
+
+  const badgeBaseClass = classes.find(className =>
+    /(^|[-_])(badge|tag|chip)([-_]|$)/i.test(className)
+    && !className.includes('--')
+    && !/(default|progress|processing|info|done|success|complete|completed|warning|warn|danger|error|destructive)/i.test(className),
+  );
+  if (badgeBaseClass) return [badgeBaseClass];
+
+  const componentClasses = classes.filter(c =>
     !isStateClass(c)
     && !/^lucide(-|$)/.test(c)
   );
-  return componentClasses.length ? componentClasses : getClasses(el);
+  return componentClasses.length ? componentClasses : classes;
 }
 
 function getStateClasses(el: Element): string[] {
@@ -184,6 +339,21 @@ const UNSAFE_GLOBAL_TAGS = new Set([
   'a', 'aside', 'button', 'div', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
   'img', 'input', 'label', 'li', 'main', 'ol', 'p', 'path', 'section',
   'span', 'strong', 'svg', 'textarea', 'ul',
+]);
+
+const TEXT_ONLY_TAGS = new Set([
+  'a',
+  'em',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'label',
+  'p',
+  'span',
+  'strong',
 ]);
 
 function classSelector(classes: string[]): string {
@@ -208,6 +378,548 @@ function getSameComponentEls(el: Element): Element[] {
 
 function getSameStateEls(el: Element): Element[] {
   return queryByClasses(el, getStateClasses(el));
+}
+
+type InspectorComponentMeta = {
+  name: string;
+  type: string;
+  layer: 'Component' | 'Primitive';
+  variant: string;
+  state: string;
+};
+
+function classIncludes(classes: string[], pattern: RegExp): boolean {
+  return classes.some(className => pattern.test(className));
+}
+
+function inferVariantFromClasses(classes: string[]): string {
+  const variantClass = classes.find(className =>
+    /(^|[-_])(primary|secondary|ghost|text|link|outline|solid|soft|danger|success|warning)([-_]|$)/i.test(className),
+  );
+  if (!variantClass) return 'default';
+  const match = variantClass.match(/primary|secondary|ghost|text|link|outline|solid|soft|danger|success|warning/i);
+  return match?.[0].toLowerCase() ?? 'default';
+}
+
+function inferStateFromElement(el: Element, classes: string[]): string {
+  if ((el as HTMLButtonElement).disabled || el.getAttribute('aria-disabled') === 'true') return 'disabled';
+  const stateClass = classes.find(isStateClass);
+  if (!stateClass) return 'default';
+  return stateClass.replace(/^(is-|has-|state-)/, '').replace(/^.+--/, '');
+}
+
+function getInspectorComponentMeta(el: Element): InspectorComponentMeta | null {
+  const tag = el.tagName.toLowerCase();
+  const classes = getClasses(el);
+  const componentClasses = getComponentClasses(el);
+
+  if (tag === 'svg' && classes.includes('lucide')) {
+    const iconClass = classes.find(className => /^lucide-/.test(className));
+    return {
+      name: iconClass ?? 'lucide',
+      type: 'Icon',
+      layer: 'Primitive',
+      variant: iconClass ? iconClass.replace(/^lucide-/, '') : 'default',
+      state: inferStateFromElement(el, classes),
+    };
+  }
+
+  if (tag === 'button' || classIncludes(classes, /(^|[-_])(btn|button)([-_]|$)/i)) {
+    const name = componentClasses.find(className => /(button|btn)/i.test(className)) ?? componentClasses[0] ?? 'button';
+    return {
+      name,
+      type: 'Button',
+      layer: 'Component',
+      variant: inferVariantFromClasses(classes),
+      state: inferStateFromElement(el, classes),
+    };
+  }
+
+  if (classIncludes(classes, /(^|[-_])card([-_]|$)/i)) {
+    return {
+      name: componentClasses.find(className => /card/i.test(className)) ?? componentClasses[0] ?? 'card',
+      type: 'Card',
+      layer: 'Component',
+      variant: inferCardVariant(classes),
+      state: inferStateFromElement(el, classes),
+    };
+  }
+
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+    return {
+      name: componentClasses[0] ?? tag,
+      type: 'Control',
+      layer: 'Primitive',
+      variant: tag,
+      state: inferStateFromElement(el, classes),
+    };
+  }
+
+  if (classIncludes(classes, /(^|[-_])(badge|tag|chip)([-_]|$)/i)) {
+    return {
+      name: componentClasses[0] ?? 'badge',
+      type: 'Badge',
+      layer: 'Component',
+      variant: inferBadgeTone(classes),
+      state: inferStateFromElement(el, classes),
+    };
+  }
+
+  return null;
+}
+
+const COMPONENT_ATTRIBUTE_ONLY_NAMES_BY_TYPE: Record<string, Set<string>> = {
+  button: new Set([
+    'primary',
+    'secondary',
+    'ghost',
+    'text',
+    'link',
+    'outline',
+    'solid',
+    'soft',
+    'danger',
+    'success',
+    'warning',
+  ]),
+  badge: new Set([
+    'default',
+    'progress',
+    'processing',
+    'info',
+    'done',
+    'success',
+    'complete',
+    'completed',
+    'warning',
+    'warn',
+    'danger',
+    'error',
+    'destructive',
+  ]),
+};
+
+function getControlDisplayName(meta: InspectorComponentMeta): string {
+  const controlType = meta.variant && meta.variant !== 'default' ? meta.variant : meta.type.toLowerCase();
+  for (const suffix of ['input', 'textarea', 'select']) {
+    const tail = `-${suffix}`;
+    if (meta.name.endsWith(tail)) {
+      const base = meta.name.slice(0, -tail.length);
+      return base ? `${suffix}-${base}` : suffix;
+    }
+  }
+  return meta.name === controlType ? controlType : `${controlType}-${meta.name}`;
+}
+
+function getComponentDisplayName(meta: InspectorComponentMeta): string {
+  if (meta.type === 'Control') return getControlDisplayName(meta);
+  if (meta.layer === 'Primitive') return meta.name;
+  const type = meta.type.toLowerCase();
+  const suffixes = type === 'button'
+    ? ['button', 'btn']
+    : type === 'badge'
+    ? ['badge', 'tag', 'chip']
+    : [type];
+
+  for (const suffix of suffixes) {
+    const tail = `-${suffix}`;
+    if (meta.name.endsWith(tail)) {
+      const base = meta.name.slice(0, -tail.length);
+      if (COMPONENT_ATTRIBUTE_ONLY_NAMES_BY_TYPE[type]?.has(base.toLowerCase())) return type;
+      return base ? `${type}-${base}` : meta.name;
+    }
+  }
+
+  return meta.name.startsWith(`${type}-`) ? meta.name : `${type}-${meta.name}`;
+}
+
+type ButtonVariantKey = 'primary' | 'secondary' | 'ghost' | 'text';
+type ButtonSizeKey = 's' | 'm' | 'l';
+type IconColorKey = 'default' | 'muted' | 'brand' | 'success' | 'warning' | 'danger';
+type BadgeToneKey = 'default' | 'progress' | 'success' | 'warning' | 'danger';
+type CardVariantKey = 'default' | 'compact' | 'floating' | 'emphasis';
+type ComponentSizeKind = 'button' | 'icon' | 'badge';
+
+type ComponentTextSlotDefinition = {
+  key: string;
+  label: string;
+  selector: string;
+};
+
+type ComponentCapability = {
+  type: string;
+  editableText?: boolean;
+  textSlots?: ComponentTextSlotDefinition[];
+  childSlots?: ComponentTextSlotDefinition[];
+  variantKind?: 'button' | 'card';
+  toneKind?: 'badge';
+  colorKind?: 'icon';
+  sizeKind?: ComponentSizeKind;
+};
+
+const CARD_EDITABLE_TEXT_SLOTS: ComponentTextSlotDefinition[] = [
+  {
+    key: 'title',
+    label: '标题',
+    selector: '[data-di-slot="title"], .task-title, .card-title, h1, h2, h3',
+  },
+  {
+    key: 'description',
+    label: '说明文',
+    selector: '[data-di-slot="description"], .card-desc, .card-description, p',
+  },
+];
+
+const CARD_CHILD_SLOTS: ComponentTextSlotDefinition[] = [
+  {
+    key: 'status',
+    label: '标签',
+    selector: '[data-di-slot="status"], .status-badge, .badge, .tag, .chip',
+  },
+];
+
+const COMPONENT_CAPABILITIES: Record<string, ComponentCapability> = {
+  Button: {
+    type: 'Button',
+    editableText: true,
+    variantKind: 'button',
+    sizeKind: 'button',
+  },
+  Icon: {
+    type: 'Icon',
+    colorKind: 'icon',
+    sizeKind: 'icon',
+  },
+  Badge: {
+    type: 'Badge',
+    editableText: true,
+    toneKind: 'badge',
+    sizeKind: 'badge',
+  },
+  Card: {
+    type: 'Card',
+    variantKind: 'card',
+    textSlots: CARD_EDITABLE_TEXT_SLOTS,
+    childSlots: CARD_CHILD_SLOTS,
+  },
+};
+
+function getComponentCapability(meta: InspectorComponentMeta | null): ComponentCapability | null {
+  return meta ? COMPONENT_CAPABILITIES[meta.type] ?? null : null;
+}
+
+function getComponentSlotElement(root: Element, slot: ComponentTextSlotDefinition): Element | null {
+  try {
+    return root.querySelector(slot.selector);
+  } catch {
+    return null;
+  }
+}
+
+function getComponentSlotValues(root: Element, slots: ComponentTextSlotDefinition[] = []): Record<string, string> {
+  return Object.fromEntries(slots.map(slot => [
+    slot.key,
+    (getComponentSlotElement(root, slot)?.textContent ?? '').trim(),
+  ]));
+}
+
+const BUTTON_VARIANT_OPTIONS: { key: ButtonVariantKey; label: string }[] = [
+  { key: 'primary', label: '主按钮' },
+  { key: 'secondary', label: '次按钮' },
+  { key: 'ghost', label: '幽灵' },
+  { key: 'text', label: '文字' },
+];
+
+const BUTTON_VARIANT_CLASS_BY_KEY: Record<ButtonVariantKey, string> = {
+  primary: 'primary-btn',
+  secondary: 'secondary-button',
+  ghost: 'ghost-button',
+  text: 'text-button',
+};
+
+const BUTTON_VARIANT_CLASS_NAMES = new Set([
+  ...Object.values(BUTTON_VARIANT_CLASS_BY_KEY),
+  'secondary-btn',
+  'outline-button',
+  'outline-btn',
+  'btn-primary',
+  'btn-secondary',
+  'btn-ghost',
+  'btn-text',
+]);
+
+const BUTTON_SIZE_OPTIONS: { key: ButtonSizeKey; label: string; minHeight: string; padding: string; fontSize: string }[] = [
+  { key: 's', label: 'S', minHeight: '34px', padding: '0 16px', fontSize: '13px' },
+  { key: 'm', label: 'M', minHeight: '42px', padding: '0 24px', fontSize: '14px' },
+  { key: 'l', label: 'L', minHeight: '48px', padding: '0 28px', fontSize: '15px' },
+];
+
+function normalizeButtonVariant(variant: string): ButtonVariantKey {
+  return BUTTON_VARIANT_OPTIONS.some(option => option.key === variant)
+    ? variant as ButtonVariantKey
+    : 'secondary';
+}
+
+function getButtonText(el: Element): string {
+  return (el.textContent ?? '').trim();
+}
+
+function getButtonVariantClass(el: Element): string {
+  const classes = getClasses(el);
+  return classes.find(className => BUTTON_VARIANT_CLASS_NAMES.has(className))
+    ?? classes.find(className => /(button|btn)/i.test(className) && /primary|secondary|ghost|text|outline/i.test(className))
+    ?? '';
+}
+
+function setButtonVariantOnTargets(targets: Element[], variant: ButtonVariantKey, restoreClass?: string) {
+  targets.forEach(target => {
+    const el = target as HTMLElement;
+    Array.from(el.classList).forEach(className => {
+      const isKnownVariant = BUTTON_VARIANT_CLASS_NAMES.has(className);
+      const isButtonVariant = /(button|btn)/i.test(className) && /primary|secondary|ghost|text|outline/i.test(className);
+      if (isKnownVariant || isButtonVariant) el.classList.remove(className);
+    });
+    const nextClass = restoreClass === undefined ? BUTTON_VARIANT_CLASS_BY_KEY[variant] : restoreClass;
+    if (nextClass) el.classList.add(nextClass);
+  });
+}
+
+function inferButtonSize(el: Element): ButtonSizeKey {
+  const height = Number.parseFloat(getComputedStyle(el).height);
+  if (height <= 36) return 's';
+  if (height <= 44) return 'm';
+  return 'l';
+}
+
+function getButtonSizeOption(size: ButtonSizeKey) {
+  return BUTTON_SIZE_OPTIONS.find(option => option.key === size) ?? BUTTON_SIZE_OPTIONS[1];
+}
+
+function setButtonSizeOnTargets(targets: Element[], size: ButtonSizeKey) {
+  const option = getButtonSizeOption(size);
+  targets.forEach(target => {
+    const el = target as HTMLElement;
+    el.style.setProperty('min-height', option.minHeight);
+    el.style.setProperty('padding', option.padding);
+    el.style.setProperty('font-size', option.fontSize);
+  });
+}
+
+function clearButtonSizeOnTargets(targets: Element[]) {
+  targets.forEach(target => {
+    const el = target as HTMLElement;
+    el.style.removeProperty('min-height');
+    el.style.removeProperty('padding');
+    el.style.removeProperty('font-size');
+  });
+}
+
+const ICON_SIZE_OPTIONS: { key: ButtonSizeKey; label: string; size: string }[] = [
+  { key: 's', label: 'S', size: '16px' },
+  { key: 'm', label: 'M', size: '20px' },
+  { key: 'l', label: 'L', size: '24px' },
+];
+
+const ICON_COLOR_OPTIONS: { key: IconColorKey; label: string; value: string }[] = [
+  { key: 'default', label: '默认', value: 'var(--color-text-default, #334155)' },
+  { key: 'muted', label: '弱化', value: 'var(--color-text-muted, #64748b)' },
+  { key: 'brand', label: '品牌', value: 'var(--color-brand-primary, #6d5dfc)' },
+  { key: 'success', label: '成功', value: 'var(--color-success, #10a56f)' },
+  { key: 'warning', label: '警告', value: 'var(--color-warning, #f59e0b)' },
+  { key: 'danger', label: '危险', value: 'var(--color-danger, #ef4444)' },
+];
+
+function inferIconSize(el: Element): ButtonSizeKey {
+  const cs = getComputedStyle(el);
+  const size = Number.parseFloat(cs.width || cs.height);
+  if (size <= 17) return 's';
+  if (size <= 21) return 'm';
+  return 'l';
+}
+
+function inferIconColor(el: Element): IconColorKey {
+  const color = normalizeColor(getComputedStyle(el).color);
+  if (color === '#64748b') return 'muted';
+  if (color === '#6d5dfc' || color === '#7c3aed') return 'brand';
+  if (color === '#10a56f' || color === '#16a34a') return 'success';
+  if (color === '#f59e0b' || color === '#d97706') return 'warning';
+  if (color === '#ef4444' || color === '#dc2626') return 'danger';
+  return 'default';
+}
+
+function setIconSizeOnTargets(targets: Element[], size: ButtonSizeKey) {
+  const option = ICON_SIZE_OPTIONS.find(item => item.key === size) ?? ICON_SIZE_OPTIONS[1];
+  targets.forEach(target => {
+    const el = target as HTMLElement;
+    el.style.setProperty('width', option.size);
+    el.style.setProperty('height', option.size);
+  });
+}
+
+function clearIconSizeOnTargets(targets: Element[]) {
+  targets.forEach(target => {
+    const el = target as HTMLElement;
+    el.style.removeProperty('width');
+    el.style.removeProperty('height');
+  });
+}
+
+function setIconColorOnTargets(targets: Element[], color: IconColorKey) {
+  const option = ICON_COLOR_OPTIONS.find(item => item.key === color) ?? ICON_COLOR_OPTIONS[0];
+  targets.forEach(target => (target as HTMLElement).style.setProperty('color', option.value));
+}
+
+function clearIconColorOnTargets(targets: Element[]) {
+  targets.forEach(target => (target as HTMLElement).style.removeProperty('color'));
+}
+
+const BADGE_TONE_OPTIONS: { key: BadgeToneKey; label: string }[] = [
+  { key: 'default', label: '默认' },
+  { key: 'progress', label: '进行中' },
+  { key: 'success', label: '成功' },
+  { key: 'warning', label: '警告' },
+  { key: 'danger', label: '危险' },
+];
+
+const BADGE_TONE_CLASS_BY_KEY: Record<BadgeToneKey, string> = {
+  default: '',
+  progress: 'status-badge--progress',
+  success: 'status-badge--done',
+  warning: 'status-badge--warning',
+  danger: 'status-badge--danger',
+};
+
+const BADGE_TONE_CLASS_NAMES = new Set([
+  ...Object.values(BADGE_TONE_CLASS_BY_KEY).filter(Boolean),
+  'badge--default',
+  'badge--progress',
+  'badge--success',
+  'badge--warning',
+  'badge--danger',
+  'tag--default',
+  'tag--progress',
+  'tag--success',
+  'tag--warning',
+  'tag--danger',
+  'chip--default',
+  'chip--progress',
+  'chip--success',
+  'chip--warning',
+  'chip--danger',
+]);
+
+const BADGE_SIZE_OPTIONS: { key: ButtonSizeKey; label: string; minHeight: string; padding: string; fontSize: string }[] = [
+  { key: 's', label: 'S', minHeight: '20px', padding: '0 8px', fontSize: '11px' },
+  { key: 'm', label: 'M', minHeight: '24px', padding: '0 12px', fontSize: '12px' },
+  { key: 'l', label: 'L', minHeight: '28px', padding: '0 14px', fontSize: '13px' },
+];
+
+function inferBadgeTone(classes: string[]): BadgeToneKey {
+  if (classIncludes(classes, /(^|[-_])(progress|processing|info)([-_]|$)/i)) return 'progress';
+  if (classIncludes(classes, /(^|[-_])(done|success|complete|completed)([-_]|$)/i)) return 'success';
+  if (classIncludes(classes, /(^|[-_])(warning|warn)([-_]|$)/i)) return 'warning';
+  if (classIncludes(classes, /(^|[-_])(danger|error|destructive)([-_]|$)/i)) return 'danger';
+  return 'default';
+}
+
+function getBadgeToneClass(el: Element): string {
+  const classes = getClasses(el);
+  return classes.find(className => BADGE_TONE_CLASS_NAMES.has(className)) ?? '';
+}
+
+function setBadgeToneOnTargets(targets: Element[], tone: BadgeToneKey, restoreClass?: string) {
+  targets.forEach(target => {
+    const el = target as HTMLElement;
+    Array.from(el.classList).forEach(className => {
+      const isKnownTone = BADGE_TONE_CLASS_NAMES.has(className);
+      const isBadgeTone = /(badge|tag|chip)/i.test(className) && /(default|progress|processing|info|done|success|complete|completed|warning|warn|danger|error|destructive)/i.test(className);
+      if (isKnownTone || isBadgeTone) el.classList.remove(className);
+    });
+    const nextClass = restoreClass === undefined ? BADGE_TONE_CLASS_BY_KEY[tone] : restoreClass;
+    if (nextClass) el.classList.add(nextClass);
+  });
+}
+
+function inferBadgeSize(el: Element): ButtonSizeKey {
+  const height = Number.parseFloat(getComputedStyle(el).height);
+  if (height <= 22) return 's';
+  if (height <= 26) return 'm';
+  return 'l';
+}
+
+function setBadgeSizeOnTargets(targets: Element[], size: ButtonSizeKey) {
+  const option = BADGE_SIZE_OPTIONS.find(item => item.key === size) ?? BADGE_SIZE_OPTIONS[1];
+  targets.forEach(target => {
+    const el = target as HTMLElement;
+    el.style.setProperty('min-height', option.minHeight);
+    el.style.setProperty('padding', option.padding);
+    el.style.setProperty('font-size', option.fontSize);
+  });
+}
+
+function clearBadgeSizeOnTargets(targets: Element[]) {
+  targets.forEach(target => {
+    const el = target as HTMLElement;
+    el.style.removeProperty('min-height');
+    el.style.removeProperty('padding');
+    el.style.removeProperty('font-size');
+  });
+}
+
+const CARD_VARIANT_OPTIONS: { key: CardVariantKey; label: string; modifier?: string }[] = [
+  { key: 'default', label: '默认' },
+  { key: 'compact', label: '紧凑', modifier: 'compact' },
+  { key: 'floating', label: '浮起', modifier: 'floating' },
+  { key: 'emphasis', label: '强调', modifier: 'emphasis' },
+];
+
+function inferCardVariant(classes: string[]): CardVariantKey {
+  if (classIncludes(classes, /--compact$/i)) return 'compact';
+  if (classIncludes(classes, /--floating$/i)) return 'floating';
+  if (classIncludes(classes, /--emphasis$/i)) return 'emphasis';
+  return 'default';
+}
+
+function getCardVariantClass(el: Element): string {
+  return getClasses(el).find(className => (
+    /card/i.test(className)
+    && /--(compact|floating|emphasis)$/i.test(className)
+  )) ?? '';
+}
+
+function getCardBaseClass(el: Element): string {
+  return getComponentClasses(el).find(className => /card/i.test(className) && !className.includes('--'))
+    ?? 'card';
+}
+
+function setCardVariantOnTargets(targets: Element[], variant: CardVariantKey, restoreClass?: string) {
+  targets.forEach(target => {
+    const el = target as HTMLElement;
+    Array.from(el.classList).forEach(className => {
+      if (/card/i.test(className) && /--(compact|floating|emphasis)$/i.test(className)) {
+        el.classList.remove(className);
+      }
+    });
+
+    const nextClass = restoreClass === undefined
+      ? CARD_VARIANT_OPTIONS.find(option => option.key === variant)?.modifier
+      : restoreClass;
+    if (nextClass && restoreClass === undefined) {
+      el.classList.add(`${getCardBaseClass(el)}--${nextClass}`);
+    } else if (nextClass) {
+      el.classList.add(nextClass);
+    }
+  });
+}
+
+function getComponentSizeControlOptions(capability: ComponentCapability | null): { key: ButtonSizeKey; label: string; title: string }[] {
+  if (capability?.sizeKind === 'icon') {
+    return ICON_SIZE_OPTIONS.map(option => ({ key: option.key, label: option.label, title: `${option.label} · ${option.size}` }));
+  }
+  if (capability?.sizeKind === 'badge') {
+    return BADGE_SIZE_OPTIONS.map(option => ({ key: option.key, label: option.label, title: `${option.label} · ${option.minHeight}` }));
+  }
+  return BUTTON_SIZE_OPTIONS.map(option => ({ key: option.key, label: option.label, title: `${option.label} · ${option.minHeight}` }));
 }
 
 function getScopeTargets(el: Element, scope: ScopeMode): Element[] {
@@ -339,6 +1051,11 @@ function normalizeCssSize(v: string): string {
   return raw;
 }
 
+function getNumericCssValue(value: string, fallback = 0): number {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 function getAuthoredStyleValue(el: Element, prop: string): string {
   const inline = (el as HTMLElement).style.getPropertyValue(prop).trim();
   if (inline) return inline;
@@ -393,9 +1110,17 @@ function sizeValueForMode(mode: SizeMode, current: string): string {
   return current || '0px';
 }
 
+function formatSizeDisplay(value: string): string {
+  const raw = value.trim();
+  const pxMatch = raw.match(/^(-?\d+(?:\.\d+)?)px$/i);
+  if (!pxMatch) return raw;
+  const rounded = Math.round(Number.parseFloat(pxMatch[1]) * 10) / 10;
+  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}px`;
+}
+
 function displaySizeValue(cssValue: string, current: string): string {
-  if (!cssValue || cssValue === '100%' || cssValue === 'fit-content') return current || '0px';
-  return cssValue;
+  if (!cssValue || cssValue === '100%' || cssValue === 'fit-content') return formatSizeDisplay(current || '0px');
+  return formatSizeDisplay(cssValue);
 }
 
 function getOneLineHugHeight(el: Element | null): number {
@@ -420,6 +1145,35 @@ function clampHeightToOneLine(cssValue: string, el: Element | null): string {
   const minH = getOneLineHugHeight(el);
   if (!minH) return cssValue;
   return `${Math.max(Number.parseFloat(px[1]), minH)}px`;
+}
+
+function normalizeSpacingInput(
+  input: string,
+  spaceSteps: DevInspectorTokenConfig['spaceSteps'],
+): string {
+  const raw = input.trim();
+  if (!raw) return '0px';
+
+  const step = spaceSteps.find(s => s.label.toLowerCase() === raw.toLowerCase());
+  if (step) return step.val;
+
+  if (/^-?\d+(?:\.\d+)?$/.test(raw)) return `${raw}px`;
+  return raw;
+}
+
+function normalizeCssLengthInput(input: string): string {
+  const raw = input.trim();
+  if (!raw) return '';
+  if (/^-?\d+(?:\.\d+)?$/.test(raw)) return `${raw}px`;
+  return raw;
+}
+
+function supportsCssValue(prop: string, value: string): boolean {
+  return typeof CSS === 'undefined' || CSS.supports(prop, value);
+}
+
+function isNegativeSpacingValue(value: string): boolean {
+  return /^-\d/.test(value.trim());
 }
 
 function calcPanelPos(rect: DOMRect): { top: number; left: number } {
@@ -490,8 +1244,7 @@ function SideInput({
               onChange={e => setDraft(e.target.value)}
               onKeyDown={e => {
                 if (e.key === 'Enter') {
-                  const s = spaceSteps.find(s => s.label.toLowerCase() === draft.toLowerCase());
-                  onChange(s ? s.val : draft || '0px');
+                  onChange(normalizeSpacingInput(draft, spaceSteps));
                   setFocused(false);
                 }
                 if (e.key === 'Escape') setFocused(false);
@@ -529,49 +1282,188 @@ function joinFourSides(s: FourSides): string {
   return `${s.top} ${s.right} ${s.bottom} ${s.left}`;
 }
 
+type SpaceVariant = 'padding' | 'margin' | 'gap';
+
+function formatSpaceShort(value: string): string {
+  const normalized = normalizeSpacingInput(value || '0px', []);
+  return normalized.replace(/px$/i, '');
+}
+
+function getSpaceStepMatch(
+  variant: SpaceVariant,
+  value: string,
+  spaceSteps: DevInspectorTokenConfig['spaceSteps'],
+) {
+  if (variant === 'gap') {
+    const normalized = normalizeSpacingInput(value, spaceSteps);
+    return spaceSteps.find(step => step.val === normalized) ?? null;
+  }
+  const sides = parseFourSides(value);
+  const isUniform = sides.top === sides.right && sides.right === sides.bottom && sides.bottom === sides.left;
+  return isUniform ? spaceSteps.find(step => step.val === sides.top) ?? null : null;
+}
+
+function getSpaceSummary(variant: SpaceVariant, value: string): string {
+  if (variant === 'gap') return `gap ${formatSpaceShort(value)}`;
+  const sides = parseFourSides(value);
+  return `上${formatSpaceShort(sides.top)} / 右${formatSpaceShort(sides.right)} / 下${formatSpaceShort(sides.bottom)} / 左${formatSpaceShort(sides.left)}`;
+}
+
 // SpaceCard 子组件
-function SpaceCard({ title, variant, value, onChange, spaceSteps }: {
+function SpaceCard({ title, variant, value, onChange, spaceSteps, custom, onCustomChange }: {
   title: string;
-  variant: 'padding' | 'margin' | 'gap';
+  variant: SpaceVariant;
   value: string;
   onChange: (v: string) => void;
   spaceSteps: DevInspectorTokenConfig['spaceSteps'];
+  custom: boolean;
+  onCustomChange: (v: boolean) => void;
 }) {
-  // gap：宽版 SideInput，图示放 input 左右两侧
-  if (variant === 'gap') {
-    return (
-      <div className="di-space-card">
-        <div className="di-space-head">
-          <span className="di-space-title">{title}</span>
-        </div>
-        <div className="di-gap-input-row">
-          <div className="di-gap-block" />
-          <SideInput value={value} onChange={onChange} spaceSteps={spaceSteps} wide />
-          <div className="di-gap-block" />
-        </div>
-      </div>
-    );
+  const [showDrop, setShowDrop] = useState(false);
+  const [popupPos, setPopupPos] = useState({ top: 0, left: 0 });
+  const matchedStep = getSpaceStepMatch(variant, value, spaceSteps);
+  const isCustom = custom || !matchedStep;
+  const isEmptySpace = !isCustom && matchedStep?.val === '0px';
+  const spaceTokenMeta = isCustom ? '' : matchedStep?.val;
+  const sides = parseFourSides(value);
+
+  function updateSide(side: keyof FourSides, v: string) {
+    const nextValue = normalizeSpacingInput(v, spaceSteps);
+    const next = { ...sides, [side]: nextValue };
+    onCustomChange(true);
+    onChange(joinFourSides(next));
   }
 
-  // padding / margin：4方向 SideInput
-  const sides = parseFourSides(value);
-  function updateSide(side: keyof FourSides, v: string) {
-    const next = { ...sides, [side]: v };
-    onChange(joinFourSides(next));
+  function stepSide(side: keyof FourSides, delta: number) {
+    const rawNext = Math.round(getNumericCssValue(sides[side]) + delta);
+    const next = variant === 'margin' ? rawNext : Math.max(0, rawNext);
+    updateSide(side, `${next}px`);
+  }
+
+  function updateGap(v: string) {
+    onCustomChange(true);
+    onChange(normalizeSpacingInput(v, spaceSteps));
+  }
+
+  function stepGap(delta: number) {
+    const rawNext = Math.round(getNumericCssValue(value) + delta);
+    updateGap(`${Math.max(0, rawNext)}px`);
   }
 
   return (
     <div className="di-space-card">
-      <div className="di-space-head">
+      <div className="di-space-row-head">
         <span className="di-space-title">{title}</span>
+        <button
+          type="button"
+          className={`di-space-token-trigger${isCustom ? ' di-space-token-trigger--custom' : ''}${isEmptySpace ? ' di-space-token-trigger--empty' : ''}`}
+          onClick={event => {
+            const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+            setPopupPos(calcDropPos(rect, 260));
+            setShowDrop(v => !v);
+          }}
+        >
+          <span className="di-space-token-label">{isCustom ? '自定义' : matchedStep?.label}</span>
+          <span className="di-space-token-meta">{spaceTokenMeta}</span>
+          <svg width="8" height="5" viewBox="0 0 8 5" fill="none" style={{marginLeft:'auto',flexShrink:0}}><path d="M1 1l3 3 3-3" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round"/></svg>
+        </button>
+        <span className="di-space-summary">{getSpaceSummary(variant, value)}</span>
+        {showDrop && (
+          <>
+            <div style={{position:'fixed',inset:0,zIndex:99997}} onClick={() => setShowDrop(false)} />
+            <div className="di-border-style-drop di-space-token-menu" style={{position:'fixed',top:popupPos.top,left:popupPos.left,zIndex:99998}}>
+              {spaceSteps.map(step => {
+                const isOn = !isCustom && matchedStep?.val === step.val;
+                return (
+                  <button
+                    key={step.val}
+                    type="button"
+                    className={`di-border-style-drop-item${isOn ? ' di-border-style-drop-item--on' : ''}`}
+                    onClick={() => {
+                      onCustomChange(false);
+                      onChange(step.val);
+                      setShowDrop(false);
+                    }}
+                  >
+                    <span className={step.val === '0px' ? 'di-border-style-label di-token-name--empty' : 'di-border-style-label'}>{step.label}</span>
+                    <span className="di-shadow-drop-meta">
+                      <span className="di-border-style-name">{step.val}</span>
+                      <span className="di-shadow-drop-value">{step.val === '0px' ? '空值状态' : 'token spacing'}</span>
+                    </span>
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                className={`di-border-style-drop-item${isCustom ? ' di-border-style-drop-item--on' : ''}`}
+                onClick={() => {
+                  onCustomChange(true);
+                  setShowDrop(false);
+                }}
+              >
+                <span className="di-custom-option-label">自定义</span>
+                <span className="di-shadow-drop-meta">
+                  <span className="di-border-style-name">手动调整参数</span>
+                  <span className="di-shadow-drop-value">{variant === 'gap' ? '间距' : '上 / 右 / 下 / 左'}</span>
+                </span>
+              </button>
+            </div>
+          </>
+        )}
       </div>
-      <div className={`di-boxing di-boxing--${variant}`}>
-        <div className="di-box-top">   <SideInput value={sides.top}    onChange={v => updateSide('top', v)} spaceSteps={spaceSteps} compact /></div>
-        <div className="di-box-left">  <SideInput value={sides.left}   onChange={v => updateSide('left', v)} spaceSteps={spaceSteps} compact /></div>
-        <div className="di-box-center"><div className="di-boxing-block" /></div>
-        <div className="di-box-right"> <SideInput value={sides.right}  onChange={v => updateSide('right', v)} spaceSteps={spaceSteps} compact /></div>
-        <div className="di-box-bottom"><SideInput value={sides.bottom} onChange={v => updateSide('bottom', v)} spaceSteps={spaceSteps} compact /></div>
-      </div>
+
+      {isCustom && variant !== 'gap' && (
+        <div className="di-space-custom-grid">
+          {([
+            { key: 'top', label: '上', value: sides.top },
+            { key: 'right', label: '右', value: sides.right },
+            { key: 'bottom', label: '下', value: sides.bottom },
+            { key: 'left', label: '左', value: sides.left },
+          ] as const).map(item => (
+            <div className="di-space-custom-row" key={item.key}>
+              <span className="di-space-custom-label">{item.label}</span>
+              <div className="di-number-stepper">
+                <input
+                  className="di-space-custom-input di-number-stepper-input"
+                  value={item.value}
+                  aria-label={`${title}${item.label}`}
+                  onChange={event => updateSide(item.key, event.currentTarget.value)}
+                  onFocus={event => event.currentTarget.select()}
+                  onClick={event => event.currentTarget.select()}
+                  onMouseUp={event => event.preventDefault()}
+                />
+                <div className="di-number-stepper-buttons">
+                  <button type="button" onClick={() => stepSide(item.key, 1)} aria-label={`${title}${item.label}增加 1px`}>⌃</button>
+                  <button type="button" onClick={() => stepSide(item.key, -1)} aria-label={`${title}${item.label}减少 1px`}>⌄</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {isCustom && variant === 'gap' && (
+        <div className="di-space-custom-grid di-space-custom-grid--gap">
+          <div className="di-space-custom-row">
+            <span className="di-space-custom-label">间距</span>
+            <div className="di-number-stepper">
+              <input
+                className="di-space-custom-input di-number-stepper-input"
+                value={value}
+                aria-label="元素间距"
+                onChange={event => updateGap(event.currentTarget.value)}
+                onFocus={event => event.currentTarget.select()}
+                onClick={event => event.currentTarget.select()}
+                onMouseUp={event => event.preventDefault()}
+              />
+              <div className="di-number-stepper-buttons">
+                <button type="button" onClick={() => stepGap(1)} aria-label="元素间距增加 1px">⌃</button>
+                <button type="button" onClick={() => stepGap(-1)} aria-label="元素间距减少 1px">⌄</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -880,6 +1772,8 @@ export function InspectorPanel({
     shadowTokens,
     typographyTokens,
   } = tokens;
+  const typographyStyles = getTypographyStyles(tokens);
+  const containerStyles = getContainerStyles(tokens);
   const shadowOptions = [
     { cssVar: '', value: 'none', label: '无', usage: '不使用阴影' },
     ...shadowTokens,
@@ -916,10 +1810,18 @@ export function InspectorPanel({
   const [pendingBorderWidth, setPendingBorderWidth] = useState('');
   const [pendingBorderStyle, setPendingBorderStyle] = useState('');
   const [expandedBorderColor, setExpandedBorderColor] = useState(false);
+  const [showContainerStyleDrop, setShowContainerStyleDrop] = useState(false);
+  const [showBorderWidthDrop, setShowBorderWidthDrop] = useState(false);
+  const [showRadiusDrop, setShowRadiusDrop] = useState(false);
+  const [containerCustomMode, setContainerCustomMode] = useState(false);
   const [showShadowDrop, setShowShadowDrop] = useState(false);
+  const [showShadowColorDrop, setShowShadowColorDrop] = useState(false);
+  const [shadowCustomMode, setShadowCustomMode] = useState(false);
   const [showStyleDrop, setShowStyleDrop] = useState(false);
   const [showWeightDrop, setShowWeightDrop] = useState(false);
   const [showFontSizeDrop, setShowFontSizeDrop] = useState(false);
+  const [showTypographyStyleDrop, setShowTypographyStyleDrop] = useState(false);
+  const [typographyCustomMode, setTypographyCustomMode] = useState(false);
   const [showScopeHelp, setShowScopeHelp] = useState(false);
   const [dropPos, setDropPos] = useState({ top: 0, left: 0 });
   const [fontSizeVal, setFontSizeVal]   = useState('');
@@ -933,6 +1835,11 @@ export function InspectorPanel({
   const [pendingPadding, setPendingPadding] = useState('');
   const [pendingMargin, setPendingMargin]   = useState('');
   const [pendingGap, setPendingGap]         = useState('');
+  const [spaceCustomModes, setSpaceCustomModes] = useState<Record<SpaceVariant, boolean>>({
+    padding: false,
+    margin: false,
+    gap: false,
+  });
   const [pendingTranslate, setPendingTranslate] = useState<{ x: number; y: number } | null>(null);
   const [pendingWidth, setPendingWidth] = useState('');
   const [pendingHeight, setPendingHeight] = useState('');
@@ -943,7 +1850,30 @@ export function InspectorPanel({
   const [newTokenName, setNewTokenName]   = useState('');
   const [saveMsg, setSaveMsg]             = useState('');
   const [copyMsg, setCopyMsg]             = useState('');
+  const [locatorMsg, setLocatorMsg]       = useState('');
   const [submitMsg, setSubmitMsg]         = useState('');
+  const [componentTextVal, setComponentTextVal] = useState('');
+  const [componentTextDraft, setComponentTextDraft] = useState('');
+  const [componentTextSlotVals, setComponentTextSlotVals] = useState<Record<string, string>>({});
+  const [componentTextSlotDrafts, setComponentTextSlotDrafts] = useState<Record<string, string>>({});
+  const [componentChildSlotVals, setComponentChildSlotVals] = useState<Record<string, string>>({});
+  const [pendingComponentTextSlots, setPendingComponentTextSlots] = useState<Record<string, string>>({});
+  const [pendingComponentText, setPendingComponentText] = useState<string | null>(null);
+  const [componentSelectorVal, setComponentSelectorVal] = useState('');
+  const [componentVariantVal, setComponentVariantVal] = useState<ButtonVariantKey>('secondary');
+  const [componentVariantClassVal, setComponentVariantClassVal] = useState('');
+  const [pendingComponentVariant, setPendingComponentVariant] = useState<ButtonVariantKey | ''>('');
+  const [componentSizeVal, setComponentSizeVal] = useState<ButtonSizeKey>('m');
+  const [pendingComponentSize, setPendingComponentSize] = useState<ButtonSizeKey | ''>('');
+  const [iconColorVal, setIconColorVal] = useState<IconColorKey>('default');
+  const [pendingIconColor, setPendingIconColor] = useState<IconColorKey | ''>('');
+  const [badgeToneVal, setBadgeToneVal] = useState<BadgeToneKey>('default');
+  const [badgeToneClassVal, setBadgeToneClassVal] = useState('');
+  const [pendingBadgeTone, setPendingBadgeTone] = useState<BadgeToneKey | ''>('');
+  const [cardVariantVal, setCardVariantVal] = useState<CardVariantKey>('default');
+  const [cardVariantClassVal, setCardVariantClassVal] = useState('');
+  const [pendingCardVariant, setPendingCardVariant] = useState<CardVariantKey | ''>('');
+  const [localDrafts, setLocalDrafts] = useState<Record<string, LocalDraftEntry>>({});
   const [styleIntentSummary, setStyleIntentSummary] = useState<StyleIntentSummary>({ pendingCount: 0, latestPending: null, pendingEntries: [] });
   const [hasCopied, setHasCopied]         = useState(() => _copiedStyles.length > 0);
   const [expandedColor, setExpandedColor] = useState<string | null>(null);
@@ -951,9 +1881,11 @@ export function InspectorPanel({
   const [addTokenModal, setAddTokenModal] = useState<{ value: string; cssProp?: string } | null>(null);
   const [customColorVals, setCustomColorVals] = useState<Record<string, string>>({});
   const selectedRef = useRef<Element>(targetEl);
+  const localDraftsRef = useRef<Record<string, LocalDraftEntry>>({});
   const gapTargetRef = useRef<HTMLElement | null>(null); // gap 实际作用的元素（可能是父容器）
 
   useEffect(() => { modalOpenRef.current = addTokenModal !== null; }, [addTokenModal]);
+  useEffect(() => { localDraftsRef.current = localDrafts; }, [localDrafts]);
 
   const formatStyleIntentSummary = useCallback((r: any): StyleIntentSummary => ({
     pendingCount: r.pendingCount ?? 0,
@@ -994,14 +1926,48 @@ export function InspectorPanel({
     refreshStyleIntentSummary();
   }, [refreshStyleIntentSummary]);
 
+  function getDraftTargetInfo(el: Element): Pick<LocalDraftEntry, 'key' | 'selector' | 'targetLabel' | 'scopeLabel'> {
+    const componentMeta = getInspectorComponentMeta(el);
+    const selector = getSelectorForScope(el, scope);
+    const targetClasses = getClasses(el);
+    const targetLabel = componentMeta
+      ? `${componentMeta.type} / ${getComponentDisplayName(componentMeta)}`
+      : targetClasses.length
+      ? `${el.tagName.toLowerCase()}.${targetClasses.join('.')}`
+      : el.tagName.toLowerCase();
+    return {
+      key: `${scope}:${selector}`,
+      selector,
+      targetLabel,
+      scopeLabel: scope === 'current' ? '当前元素' : '相同元素',
+    };
+  }
+
+  function removeLocalDraftEntry(key: string) {
+    setLocalDrafts(prev => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
+
   // 选中逻辑
   const selectEl = useCallback((el: Element) => {
     selectedRef.current = el;
     const rect = el.getBoundingClientRect();
     setPanelPos(calcPanelPos(rect));
+    setLocatorMsg('');
 
     // 读颜色
     const elCs = getComputedStyle(el);
+    const selectedComponentMeta = getInspectorComponentMeta(el);
+    const selectedCapability = getComponentCapability(selectedComponentMeta);
+    const isButtonComponent = selectedCapability?.type === 'Button';
+    const isIconComponent = selectedCapability?.type === 'Icon';
+    const isBadgeComponent = selectedCapability?.type === 'Badge';
+    const isCardComponent = selectedCapability?.type === 'Card';
+    const hasEditableText = !!selectedCapability?.editableText;
     const c: Record<string, string> = {};
     for (const { prop } of COLOR_PROPS) {
       const val = getComputedColor(el, prop);
@@ -1019,6 +1985,7 @@ export function InspectorPanel({
     setTextColorVal(normalizeColor(elCs.color.trim()));
     setFontSizeCustomDraft(elCs.fontSize.trim());
     setPendingFontSize(''); setPendingFontWeight(''); setPendingTextColor('');
+    setTypographyCustomMode(false);
     setExpandedTextColor(false);
 
     // 边框
@@ -1030,6 +1997,10 @@ export function InspectorPanel({
     setBorderColorVal(bw !== '0px' ? bc : '');
     setPendingBorderColor(''); setPendingBorderWidth(''); setPendingBorderStyle('');
     setExpandedBorderColor(false);
+    setShowContainerStyleDrop(false);
+    setShowBorderWidthDrop(false);
+    setShowRadiusDrop(false);
+    setContainerCustomMode(false);
 
     // 圆角
     const r = getComputedRadius(el);
@@ -1041,7 +2012,9 @@ export function InspectorPanel({
     setShadowVal(shadowComputed === 'rgba(0, 0, 0, 0) 0px 0px 0px 0px' ? 'none' : shadowComputed);
     setShadowAuthoredVal(getAuthoredStyleValue(el, 'box-shadow'));
     setPendingShadow('');
+    setShadowCustomMode(false);
     setShowShadowDrop(false);
+    setShowShadowColorDrop(false);
 
     // 间距
     const cs = getComputedStyle(el);
@@ -1068,6 +2041,7 @@ export function InspectorPanel({
       }
     }
     setPendingPadding(''); setPendingMargin(''); setPendingGap('');
+    setSpaceCustomModes({ padding: false, margin: false, gap: false });
 
     setTranslateVal(parseTranslate(cs.translate));
     setWidthVal(cs.width.trim());
@@ -1080,6 +2054,66 @@ export function InspectorPanel({
 
     setNote('');
     setTextContent(getTextContent(el));
+    if (selectedComponentMeta) {
+      setComponentSelectorVal(getSelectorForScope(el, 'component'));
+    } else {
+      setComponentSelectorVal('');
+    }
+    if (hasEditableText) {
+      const componentText = getButtonText(el);
+      setComponentTextVal(componentText);
+      setComponentTextDraft(componentText);
+    } else {
+      setComponentTextVal('');
+      setComponentTextDraft('');
+    }
+    const editableSlotValues = getComponentSlotValues(el, selectedCapability?.textSlots);
+    const childSlotValues = getComponentSlotValues(el, selectedCapability?.childSlots);
+    setComponentTextSlotVals(editableSlotValues);
+    setComponentTextSlotDrafts(editableSlotValues);
+    setComponentChildSlotVals(childSlotValues);
+    if (isButtonComponent) {
+      setComponentVariantVal(normalizeButtonVariant(selectedComponentMeta?.variant ?? ''));
+      setComponentVariantClassVal(getButtonVariantClass(el));
+      setComponentSizeVal(inferButtonSize(el));
+    } else if (isIconComponent) {
+      setComponentVariantVal('secondary');
+      setComponentVariantClassVal('');
+      setComponentSizeVal(inferIconSize(el));
+      setIconColorVal(inferIconColor(el));
+    } else if (isBadgeComponent) {
+      const tone = inferBadgeTone(getClasses(el));
+      setComponentVariantVal('secondary');
+      setComponentVariantClassVal('');
+      setComponentSizeVal(inferBadgeSize(el));
+      setBadgeToneVal(tone);
+      setBadgeToneClassVal(getBadgeToneClass(el));
+    } else if (isCardComponent) {
+      setComponentVariantVal('secondary');
+      setComponentVariantClassVal('');
+      setComponentSizeVal('m');
+      setIconColorVal('default');
+      setBadgeToneVal('default');
+      setBadgeToneClassVal('');
+      setCardVariantVal(inferCardVariant(getClasses(el)));
+      setCardVariantClassVal(getCardVariantClass(el));
+    } else {
+      setComponentVariantVal('secondary');
+      setComponentVariantClassVal('');
+      setComponentSizeVal('m');
+      setIconColorVal('default');
+      setBadgeToneVal('default');
+      setBadgeToneClassVal('');
+      setCardVariantVal('default');
+      setCardVariantClassVal('');
+    }
+    setPendingComponentText(null);
+    setPendingComponentTextSlots({});
+    setPendingComponentVariant('');
+    setPendingComponentSize('');
+    setPendingIconColor('');
+    setPendingBadgeTone('');
+    setPendingCardVariant('');
     setNewTokenProp(null);
     setExpandedColor(null);
     setShowScopeHelp(false);
@@ -1144,6 +2178,7 @@ export function InspectorPanel({
 
   function liveApply(prop: string, val: string) {
     if (prop === 'gap' && gapTargetRef.current) {
+      if (isNegativeSpacingValue(val)) return;
       gapTargetRef.current.style.setProperty('gap', val);
     } else {
       applyToDOM([{ prop, val }]);
@@ -1152,6 +2187,35 @@ export function InspectorPanel({
 
   function liveApplyMany(changes: { prop: string; val: string }[]) {
     applyToDOM(changes);
+  }
+
+  function applyTypographyStyle(style: TypographyStyleOption) {
+    setPendingFontSize(style.value);
+    setPendingFontWeight(style.fontWeight);
+    setPendingTextColor(style.color);
+    setTypographyCustomMode(false);
+    liveApplyMany([
+      { prop: 'font-size', val: style.value },
+      { prop: 'font-weight', val: style.fontWeight },
+      { prop: 'color', val: style.color },
+    ]);
+  }
+
+  function applyContainerStyle(style: ContainerStyleOption) {
+    setPendingColors(prev => ({ ...prev, 'background-color': style.backgroundColor }));
+    setPendingBorderColor(style.borderColor);
+    setPendingBorderWidth(style.borderWidth);
+    setPendingBorderStyle(style.borderStyle);
+    setPendingRadius(style.borderRadius);
+    setCustomRadius('');
+    setContainerCustomMode(false);
+    liveApplyMany([
+      { prop: 'background-color', val: style.backgroundColor },
+      { prop: 'border-color', val: style.borderColor },
+      { prop: 'border-width', val: style.borderWidth },
+      { prop: 'border-style', val: style.borderStyle },
+      { prop: 'border-radius', val: style.borderRadius },
+    ]);
   }
 
   function getPendingEntries() {
@@ -1208,11 +2272,42 @@ export function InspectorPanel({
     };
   }
 
-  function nudgeSelected(dx: number, dy: number) {
+  function setTranslateAxis(axis: 'x' | 'y', value: string) {
     const base = pendingTranslate ?? translateVal;
-    const next = { x: base.x + dx, y: base.y + dy };
+    const nextValue = getNumericCssValue(normalizeCssSize(value));
+    const next = { ...base, [axis]: nextValue };
     setPendingTranslate(next);
     liveApply('translate', formatTranslate(next));
+  }
+
+  function stepTranslateAxis(axis: 'x' | 'y', delta: number) {
+    const base = pendingTranslate ?? translateVal;
+    setTranslateAxis(axis, `${base[axis] + delta}px`);
+  }
+
+  function stepSize(prop: SizeAxis, value: string, delta: number) {
+    const fallback = getNumericCssValue(prop === 'width' ? pendingWidth || widthVal : pendingHeight || heightVal);
+    const next = `${Math.round(getNumericCssValue(value, fallback) + delta)}px`;
+    setSizeDraft(prev => ({ ...prev, [prop]: next }));
+    setSize(prop, next, 'fixed');
+  }
+
+  function setCustomShadowPart(part: keyof ShadowParts, value: string) {
+    const current = parseShadowParts(pendingShadow || shadowVal);
+    const nextParts = {
+      ...current,
+      [part]: part === 'color' ? value : normalizeShadowLengthInput(value),
+    };
+    const next = buildShadowValue(nextParts);
+    setShadowCustomMode(true);
+    setPendingShadow(next);
+    liveApply('box-shadow', next);
+  }
+
+  function stepCustomShadowPart(part: Exclude<keyof ShadowParts, 'color'>, delta: number) {
+    const current = parseShadowParts(pendingShadow || shadowVal);
+    const next = `${Math.round(getNumericCssValue(current[part]) + delta)}px`;
+    setCustomShadowPart(part, next);
   }
 
   function setSize(prop: SizeAxis, val: string, mode: SizeMode = 'fixed') {
@@ -1247,6 +2342,104 @@ export function InspectorPanel({
       }
     }
     liveApply(prop, cssValue);
+  }
+
+  function getComponentTargets(): Element[] {
+    const el = selectedRef.current;
+    return el ? getScopeTargets(el, scope) : [];
+  }
+
+  function getComponentContentTargets(): Element[] {
+    const el = selectedRef.current;
+    return el ? [el] : [];
+  }
+
+  function updateComponentText(value: string) {
+    setComponentTextDraft(value);
+    setPendingComponentText(value === componentTextVal ? null : value);
+    getComponentContentTargets().forEach(target => { target.textContent = value; });
+  }
+
+  function updateComponentTextSlot(slot: ComponentTextSlotDefinition, value: string) {
+    setComponentTextSlotDrafts(prev => ({ ...prev, [slot.key]: value }));
+    setPendingComponentTextSlots(prev => {
+      const next = { ...prev };
+      if (value === componentTextSlotVals[slot.key]) {
+        delete next[slot.key];
+      } else {
+        next[slot.key] = value;
+      }
+      return next;
+    });
+    getComponentContentTargets().forEach(target => {
+      const slotEl = getComponentSlotElement(target, slot);
+      if (slotEl) slotEl.textContent = value;
+    });
+  }
+
+  function updateComponentVariant(variant: ButtonVariantKey) {
+    const targets = getComponentTargets();
+    if (variant === componentVariantVal) {
+      setPendingComponentVariant('');
+      setButtonVariantOnTargets(targets, componentVariantVal, componentVariantClassVal);
+      return;
+    }
+    setPendingComponentVariant(variant);
+    setButtonVariantOnTargets(targets, variant);
+  }
+
+  function updateComponentSize(size: ButtonSizeKey) {
+    const meta = getInspectorComponentMeta(selectedRef.current);
+    const capability = getComponentCapability(meta);
+    const targets = getComponentTargets();
+    setPendingComponentSize(size === componentSizeVal ? '' : size);
+    if (size === componentSizeVal) {
+      clearButtonSizeOnTargets(targets);
+      clearIconSizeOnTargets(targets);
+      clearBadgeSizeOnTargets(targets);
+      return;
+    }
+    if (capability?.sizeKind === 'icon') {
+      setIconSizeOnTargets(targets, size);
+      return;
+    }
+    if (capability?.sizeKind === 'badge') {
+      setBadgeSizeOnTargets(targets, size);
+      return;
+    }
+    setButtonSizeOnTargets(targets, size);
+  }
+
+  function updateIconColor(color: IconColorKey) {
+    const targets = getComponentTargets();
+    setPendingIconColor(color === iconColorVal ? '' : color);
+    if (color === iconColorVal) {
+      clearIconColorOnTargets(targets);
+      return;
+    }
+    setIconColorOnTargets(targets, color);
+  }
+
+  function updateBadgeTone(tone: BadgeToneKey) {
+    const targets = getComponentTargets();
+    if (tone === badgeToneVal) {
+      setPendingBadgeTone('');
+      setBadgeToneOnTargets(targets, badgeToneVal, badgeToneClassVal);
+      return;
+    }
+    setPendingBadgeTone(tone);
+    setBadgeToneOnTargets(targets, tone);
+  }
+
+  function updateCardVariant(variant: CardVariantKey) {
+    const targets = getComponentTargets();
+    if (variant === cardVariantVal) {
+      setPendingCardVariant('');
+      setCardVariantOnTargets(targets, cardVariantVal, cardVariantClassVal);
+      return;
+    }
+    setPendingCardVariant(variant);
+    setCardVariantOnTargets(targets, variant);
   }
 
   // ─── 保存并修改 ───────────────────────────────────────────────
@@ -1303,58 +2496,116 @@ export function InspectorPanel({
 
   function buildAiTaskPrompt(params: {
     entryId?: string;
+    pageLabel: string;
     targetLabel: string;
     selector: string;
     scopeLabel: string;
     changes: { prop: string; from: string; val: string }[];
+    note?: string;
   }) {
-    const inboxJson = '/Users/heqiao/Desktop/Claude练习/项目3-快消AI中台/docs/style-inbox.json';
-    const inboxMd = '/Users/heqiao/Desktop/Claude练习/项目3-快消AI中台/docs/STYLE_INBOX.md';
     const changes = params.changes
       .map((change, index) => `${index + 1}. ${getChangeLabel(change.prop)}：${change.from} → ${change.val}`)
       .join('\n');
     const latestHint = params.entryId
       ? `优先处理 id = ${params.entryId} 这条记录。`
-      : '这条任务文本来自当前选中元素的本轮修改。';
+      : '这条任务来自 DevInspector 当前选中元素。';
     return [
-      '请处理这条 DevInspector 样式任务：',
-      '',
-      latestHint,
-      `如需查看累计记录，读取：${inboxJson}`,
-      `必要时对照：${inboxMd}`,
-      '',
-      `对象：${params.targetLabel}`,
-      `作用范围：${params.scopeLabel}`,
+      'DevInspector 样式任务',
+      `页面：${params.pageLabel}`,
+      `元素：${params.targetLabel}`,
+      `范围：${params.scopeLabel}`,
       `选择器：${params.selector}`,
       '改动：',
-      changes,
-      '',
-      '请先判断是否适合固化进正式组件样式，再修改代码，并在处理后把这条任务标记为已处理。',
+      changes || '无样式改动',
+      ...(params.note ? ['补充：', params.note] : []),
+      '定位提示：',
+      latestHint,
+      '请优先定位该选择器对应的组件或样式源码，判断是否应固化为正式组件样式；不要手改 dist。',
+    ].join('\n');
+  }
+
+  function buildAiDraftBasketPrompt(drafts: LocalDraftEntry[]) {
+    const sections = drafts
+      .sort((a, b) => a.updatedAt - b.updatedAt)
+      .map((draft, index) => {
+        const changes = draft.changes
+          .map((change, changeIndex) => `${changeIndex + 1}. ${getChangeLabel(change.prop)}：${change.from} → ${change.val}`)
+          .join('\n');
+        return [
+          `${index + 1}. 元素：${draft.targetLabel}`,
+          `范围：${draft.scopeLabel}`,
+          `选择器：${draft.selector}`,
+          '改动：',
+          changes || '无样式改动',
+        ].join('\n');
+      })
+      .join('\n\n');
+    return [
+      'DevInspector 样式任务',
+      `页面：${document.title || '当前页面'}（${window.location.href}）`,
+      `待处理对象：${drafts.length}`,
+      sections,
+      ...(note ? ['补充：', note] : []),
+      '定位提示：',
+      '这些内容来自 DevInspector 本次修改内容，请按对象逐一定位源码，判断是否应固化为组件样式、token 或局部覆盖；不要手改 dist。',
     ].join('\n');
   }
 
   function handleSubmitToAi() {
+    const draftEntries = Object.values(localDraftsRef.current);
+    if (draftEntries.length > 0) {
+      const prompt = buildAiDraftBasketPrompt(draftEntries);
+      copyTextToClipboard(prompt)
+        .then((copied) => {
+          setSubmitMsg(copied ? '任务文本已复制 ✓' : '复制失败');
+          setTimeout(() => setSubmitMsg(''), copied ? 2200 : 1800);
+        })
+        .catch(() => {
+          setSubmitMsg('复制失败');
+          setTimeout(() => setSubmitMsg(''), 1800);
+        });
+      return;
+    }
+
     const payload = getPendingEntries();
     if (!payload) return;
     const { el, pending, selector } = payload;
+    const componentMeta = getInspectorComponentMeta(el);
     const changes = getPendingChangeRecords();
-    if (pending.length === 0 && !note) {
+    if (pending.length === 0 && !note && !componentMeta) {
       setSubmitMsg('先改点样式或写备注');
       setTimeout(() => setSubmitMsg(''), 1800);
       return;
     }
 
-    const scopeLabel = scope === 'current' ? '当前元素' : '同组件';
+    const hasOnlyInstanceContentPending = componentMeta
+      && (pendingComponentText !== null || Object.keys(pendingComponentTextSlots).length > 0)
+      && !pendingComponentVariant
+      && !pendingComponentSize
+      && !pendingIconColor
+      && !pendingBadgeTone
+      && !pendingCardVariant
+      && pending.length === 0;
+    const scopeLabel = hasOnlyInstanceContentPending
+      ? '当前元素'
+      : scope === 'current' ? '当前元素' : '相同元素';
     const targetClasses = getClasses(el);
-    const targetLabel = targetClasses.length
+    const targetLabel = componentMeta
+      ? `${componentMeta.type} / ${getComponentDisplayName(componentMeta)}`
+      : targetClasses.length
       ? `${el.tagName.toLowerCase()}.${targetClasses.join('.')}`
       : el.tagName.toLowerCase();
+    const stableSelector = componentMeta && hasComponentAttrPending && componentSelectorVal
+      ? componentSelectorVal
+      : selector;
 
     const prompt = buildAiTaskPrompt({
+      pageLabel: `${document.title || '当前页面'}（${window.location.href}）`,
       targetLabel,
-      selector,
+      selector: stableSelector,
       scopeLabel,
       changes,
+      note,
     });
     copyTextToClipboard(prompt)
       .then((copied) => {
@@ -1412,7 +2663,7 @@ export function InspectorPanel({
     if (prop === 'border-width') return borderWidthVal;
     if (prop === 'border-style') return borderStyleVal;
     if (prop === 'border-radius') return radiusVal;
-    if (prop === 'box-shadow') return getShadowDisplay(shadowVal, shadowAuthoredVal, shadowTokens).label;
+    if (prop === 'box-shadow') return getShadowChangeDisplay(shadowVal, shadowAuthoredVal, shadowTokens);
     if (prop === 'padding') return paddingVal;
     if (prop === 'margin') return marginVal;
     if (prop === 'gap') return gapVal;
@@ -1437,16 +2688,79 @@ export function InspectorPanel({
     if (pendingBorderWidth) add('border-width', borderWidthVal, pendingBorderWidth);
     if (pendingBorderStyle) add('border-style', borderStyleVal, pendingBorderStyle);
     if (pendingRadius)      add('border-radius', radiusVal, pendingRadius);
-    if (pendingShadow)      add('box-shadow', getShadowDisplay(shadowVal, shadowAuthoredVal, shadowTokens).label, getShadowDisplay(pendingShadow, pendingShadow, shadowTokens).label);
+    if (pendingShadow)      add('box-shadow', getShadowChangeDisplay(shadowVal, shadowAuthoredVal, shadowTokens), getShadowChangeDisplay(pendingShadow, pendingShadow, shadowTokens));
     if (pendingPadding)     add('padding', paddingVal, pendingPadding);
     if (pendingMargin)      add('margin', marginVal, pendingMargin);
     if (pendingGap)         add('gap', gapVal, pendingGap);
     if (pendingTranslate)   add('translate', formatTranslate(translateVal), formatTranslate(pendingTranslate));
     if (pendingWidth)       add('width', widthVal, pendingWidth);
     if (pendingHeight)      add('height', heightVal, pendingHeight);
+    if (pendingComponentText !== null && pendingComponentText !== componentTextVal) {
+      add('component-text', componentTextVal || '空', pendingComponentText || '空');
+    }
+    for (const [slotKey, nextValue] of Object.entries(pendingComponentTextSlots)) {
+      const fromValue = componentTextSlotVals[slotKey] ?? '空';
+      add(`component-slot:${slotKey}`, fromValue || '空', nextValue || '空');
+    }
+    if (pendingComponentVariant) {
+      add('component-variant', componentVariantVal, pendingComponentVariant);
+    }
+    if (pendingComponentSize) {
+      add('component-size', componentSizeVal.toUpperCase(), pendingComponentSize.toUpperCase());
+    }
+    if (pendingIconColor) {
+      add('component-color', iconColorVal, pendingIconColor);
+    }
+    if (pendingBadgeTone) {
+      add('component-tone', badgeToneVal, pendingBadgeTone);
+    }
+    if (pendingCardVariant) {
+      const fromLabel = CARD_VARIANT_OPTIONS.find(option => option.key === cardVariantVal)?.label ?? cardVariantVal;
+      const toLabel = CARD_VARIANT_OPTIONS.find(option => option.key === pendingCardVariant)?.label ?? pendingCardVariant;
+      add('component-variant', fromLabel, toLabel);
+    }
     if (pendingNewToken)    add('token', '新增', `${pendingNewToken.cssVar}: ${pendingNewToken.value}`);
     return records;
   }
+
+  useEffect(() => {
+    const el = selectedRef.current;
+    if (!el) return;
+    const changes = getPendingChangeRecords();
+    if (changes.length === 0) return;
+    const info = getDraftTargetInfo(el);
+    setLocalDrafts(prev => {
+      const existing = prev[info.key];
+      const existingByProp = new Map(existing?.changes.map(change => [change.prop, change]) ?? []);
+      const mergedByProp = new Map<string, LocalDraftChange>();
+      existing?.changes.forEach(change => mergedByProp.set(change.prop, change));
+      changes.forEach(change => {
+        const previous = existingByProp.get(change.prop);
+        mergedByProp.set(change.prop, {
+          ...change,
+          from: previous?.from ?? change.from,
+        });
+      });
+      const mergedChanges = Array.from(mergedByProp.values());
+      const comparableExisting = existing
+        ? {
+            key: existing.key,
+            selector: existing.selector,
+            targetLabel: existing.targetLabel,
+            scopeLabel: existing.scopeLabel,
+            changes: existing.changes,
+          }
+        : null;
+      const comparableNext = { ...info, changes: mergedChanges };
+      if (JSON.stringify(comparableExisting) === JSON.stringify(comparableNext)) return prev;
+      const nextEntry: LocalDraftEntry = {
+        ...info,
+        changes: mergedChanges,
+        updatedAt: Date.now(),
+      };
+      return { ...prev, [info.key]: nextEntry };
+    });
+  });
 
   function getChangeLabel(prop: string) {
     const map: Record<string, string> = {
@@ -1467,8 +2781,161 @@ export function InspectorPanel({
       'height': '高度',
       'min-height': '最小高度',
       'max-height': '最大高度',
+      'component-text': '组件文案',
+      'component-variant': '组件变体',
+      'component-size': '组件尺寸',
+      'component-color': '组件颜色',
+      'component-tone': '组件色调',
     };
+    if (prop.startsWith('component-slot:')) {
+      const slotKey = prop.replace('component-slot:', '');
+      const slotLabel = componentCapability?.textSlots?.find(slot => slot.key === slotKey)?.label ?? slotKey;
+      return `组件内容 · ${slotLabel}`;
+    }
     return map[prop] || prop;
+  }
+
+  function clearPendingForProp(prop: string) {
+    if (prop === 'font-size') setPendingFontSize('');
+    else if (prop === 'font-weight') setPendingFontWeight('');
+    else if (prop === 'color') setPendingTextColor('');
+    else if (prop === 'background-color') {
+      setPendingColors(prev => {
+        const next = { ...prev };
+        delete next[prop];
+        return next;
+      });
+    } else if (prop === 'border-color') setPendingBorderColor('');
+    else if (prop === 'border-width') setPendingBorderWidth('');
+    else if (prop === 'border-style') setPendingBorderStyle('');
+    else if (prop === 'border-radius') setPendingRadius('');
+    else if (prop === 'box-shadow') {
+      setPendingShadow('');
+      setShadowCustomMode(false);
+    } else if (prop === 'padding') setPendingPadding('');
+    else if (prop === 'margin') setPendingMargin('');
+    else if (prop === 'gap') setPendingGap('');
+    else if (prop === 'translate') setPendingTranslate(null);
+    else if (prop === 'width') {
+      setPendingWidth('');
+      setPendingWidthMode(null);
+      setSizeDraft(prev => {
+        const next = { ...prev };
+        delete next.width;
+        return next;
+      });
+    } else if (prop === 'height' || prop === 'min-height' || prop === 'max-height') {
+      setPendingHeight('');
+      setPendingHeightMode(null);
+      setSizeDraft(prev => {
+        const next = { ...prev };
+        delete next.height;
+        return next;
+      });
+    } else if (prop === 'component-text') {
+      setPendingComponentText(null);
+      setComponentTextDraft(componentTextVal);
+      getComponentContentTargets().forEach(target => { target.textContent = componentTextVal; });
+    } else if (prop.startsWith('component-slot:')) {
+      const slotKey = prop.replace('component-slot:', '');
+      setPendingComponentTextSlots(prev => {
+        const next = { ...prev };
+        delete next[slotKey];
+        return next;
+      });
+      setComponentTextSlotDrafts(prev => ({ ...prev, [slotKey]: componentTextSlotVals[slotKey] ?? '' }));
+      const slot = componentCapability?.textSlots?.find(item => item.key === slotKey);
+      if (slot) {
+        getComponentContentTargets().forEach(target => {
+          const slotEl = getComponentSlotElement(target, slot);
+          if (slotEl) slotEl.textContent = componentTextSlotVals[slot.key] ?? '';
+        });
+      }
+    } else if (prop === 'component-variant') {
+      setPendingComponentVariant('');
+      setPendingCardVariant('');
+    } else if (prop === 'component-size') {
+      setPendingComponentSize('');
+    } else if (prop === 'component-color') {
+      setPendingIconColor('');
+    } else if (prop === 'component-tone') {
+      setPendingBadgeTone('');
+    }
+  }
+
+  function getDraftSelectorTargets(selector: string): Element[] {
+    try {
+      return Array.from(document.querySelectorAll(selector));
+    } catch {
+      return [];
+    }
+  }
+
+  function resetDraftChangeOnPage(draft: LocalDraftEntry, change: LocalDraftChange) {
+    const isCurrentDraft = selectedRef.current ? getDraftTargetInfo(selectedRef.current).key === draft.key : false;
+    if (isCurrentDraft) clearPendingForProp(change.prop);
+
+    const targets = getDraftSelectorTargets(draft.selector);
+    if (change.prop === 'component-text') {
+      targets.forEach(target => { target.textContent = change.from === '空' ? '' : change.from; });
+      return;
+    }
+    if (change.prop.startsWith('component-slot:')) return;
+    if (change.prop.startsWith('component-')) {
+      if (isCurrentDraft) {
+        const currentTargets = getComponentTargets();
+        if (change.prop === 'component-variant') {
+          setButtonVariantOnTargets(currentTargets, componentVariantVal, componentVariantClassVal);
+          setCardVariantOnTargets(currentTargets, cardVariantVal, cardVariantClassVal);
+        } else if (change.prop === 'component-size') {
+          clearButtonSizeOnTargets(currentTargets);
+          clearIconSizeOnTargets(currentTargets);
+          clearBadgeSizeOnTargets(currentTargets);
+        } else if (change.prop === 'component-color') {
+          clearIconColorOnTargets(currentTargets);
+        } else if (change.prop === 'component-tone') {
+          setBadgeToneOnTargets(currentTargets, badgeToneVal, badgeToneClassVal);
+        }
+      }
+      return;
+    }
+
+    targets.forEach(target => {
+      const hEl = target as HTMLElement;
+      hEl.style.removeProperty(change.prop);
+      if (change.prop === 'height') {
+        hEl.style.removeProperty('min-height');
+        hEl.style.removeProperty('max-height');
+      }
+    });
+    if (change.prop === 'gap' && isCurrentDraft && gapTargetRef.current) {
+      gapTargetRef.current.style.removeProperty('gap');
+    }
+  }
+
+  function handleDeleteLocalDraft(key: string) {
+    const draft = localDraftsRef.current[key];
+    if (draft) draft.changes.forEach(change => resetDraftChangeOnPage(draft, change));
+    removeLocalDraftEntry(key);
+  }
+
+  function handleResetLocalDraftChange(key: string, prop: string) {
+    const draft = localDraftsRef.current[key];
+    const change = draft?.changes.find(item => item.prop === prop);
+    if (!draft || !change) return;
+    resetDraftChangeOnPage(draft, change);
+    setLocalDrafts(prev => {
+      const current = prev[key];
+      if (!current) return prev;
+      const remaining = current.changes.filter(item => item.prop !== prop);
+      const next = { ...prev };
+      if (remaining.length === 0) {
+        delete next[key];
+      } else {
+        next[key] = { ...current, changes: remaining, updatedAt: Date.now() };
+      }
+      return next;
+    });
   }
 
   // ─── 取消 ────────────────────────────────────────────────────
@@ -1477,6 +2944,35 @@ export function InspectorPanel({
     if (!el) return;
     // 还原所有 inline style 改动
     const targets = getScopeTargets(el, scope);
+    if (pendingComponentText !== null) {
+      getComponentContentTargets().forEach(t => { t.textContent = componentTextVal; });
+    }
+    const meta = getInspectorComponentMeta(el);
+    const capability = getComponentCapability(meta);
+    for (const slot of capability?.textSlots ?? []) {
+      if (!(slot.key in pendingComponentTextSlots)) continue;
+      getComponentContentTargets().forEach(t => {
+        const slotEl = getComponentSlotElement(t, slot);
+        if (slotEl) slotEl.textContent = componentTextSlotVals[slot.key] ?? '';
+      });
+    }
+    if (pendingComponentVariant) {
+      setButtonVariantOnTargets(targets, componentVariantVal, componentVariantClassVal);
+    }
+    if (pendingComponentSize) {
+      clearButtonSizeOnTargets(targets);
+      clearIconSizeOnTargets(targets);
+      clearBadgeSizeOnTargets(targets);
+    }
+    if (pendingIconColor) {
+      clearIconColorOnTargets(targets);
+    }
+    if (pendingBadgeTone) {
+      setBadgeToneOnTargets(targets, badgeToneVal, badgeToneClassVal);
+    }
+    if (pendingCardVariant) {
+      setCardVariantOnTargets(targets, cardVariantVal, cardVariantClassVal);
+    }
     targets.forEach(t => {
       const hEl = t as HTMLElement;
       [...Object.keys(pendingColors)].forEach(p => hEl.style.removeProperty(p));
@@ -1494,15 +2990,34 @@ export function InspectorPanel({
       if (pendingHeight) hEl.style.removeProperty('min-height');
       if (pendingHeight) hEl.style.removeProperty('max-height');
     });
+    if (pendingGap && gapTargetRef.current) {
+      gapTargetRef.current.style.removeProperty('gap');
+    }
     setPendingColors({});
     setPendingRadius('');
     setPendingShadow('');
+    setShadowCustomMode(false);
+    setShowShadowColorDrop(false);
     setPendingFontSize(''); setPendingFontWeight(''); setPendingTextColor('');
     setPendingBorderColor(''); setPendingBorderWidth(''); setPendingBorderStyle('');
+    setContainerCustomMode(false);
+    setShowContainerStyleDrop(false);
+    setShowBorderWidthDrop(false);
+    setShowRadiusDrop(false);
     setPendingPadding(''); setPendingMargin(''); setPendingGap('');
+    setSpaceCustomModes({ padding: false, margin: false, gap: false });
     setPendingTranslate(null); setPendingWidth(''); setPendingHeight('');
     setPendingWidthMode(null); setPendingHeightMode(null);
     setSizeDraft({});
+    setComponentTextDraft(componentTextVal);
+    setComponentTextSlotDrafts(componentTextSlotVals);
+    setPendingComponentText(null);
+    setPendingComponentTextSlots({});
+    setPendingComponentVariant('');
+    setPendingComponentSize('');
+    setPendingIconColor('');
+    setPendingBadgeTone('');
+    setPendingCardVariant('');
     setCustomColorVals({});
     // 重新读取当前计算值
     setColors(Object.fromEntries(
@@ -1526,11 +3041,41 @@ export function InspectorPanel({
     setHeightVal(cs.height.trim());
     setWidthMode(inferSizeMode(el, 'width', cs.width.trim()));
     setHeightMode(inferSizeMode(el, 'height', cs.height.trim()));
+    removeLocalDraftEntry(getDraftTargetInfo(el).key);
   }
 
   function handleClose() {
     onClose();
   }
+
+  const componentMeta = getInspectorComponentMeta(selected);
+  const componentCapability = getComponentCapability(componentMeta);
+  const componentEditableSlots = componentCapability?.textSlots ?? [];
+  const componentChildSlots = componentCapability?.childSlots ?? [];
+  const visibleChildSlots = componentChildSlots
+    .map(slot => ({ slot, value: componentChildSlotVals[slot.key] ?? '', element: getComponentSlotElement(selected, slot) }))
+    .filter(item => item.element);
+  const hasComponentAttrPending = pendingComponentText !== null
+    || Object.keys(pendingComponentTextSlots).length > 0
+    || !!pendingComponentVariant
+    || !!pendingComponentSize
+    || !!pendingIconColor
+    || !!pendingBadgeTone
+    || !!pendingCardVariant;
+  const componentSelector = componentMeta && hasComponentAttrPending && componentSelectorVal
+    ? componentSelectorVal
+    : getSelectorForScope(selected, 'component');
+  const componentDisplayName = componentMeta ? getComponentDisplayName(componentMeta) : '';
+  const isTextOnlyTarget = !componentMeta && TEXT_ONLY_TAGS.has(selected.tagName.toLowerCase());
+  const activeButtonVariant = pendingComponentVariant || componentVariantVal;
+  const activeButtonSize = pendingComponentSize || componentSizeVal;
+  const activeIconColor = pendingIconColor || iconColorVal;
+  const activeBadgeTone = pendingBadgeTone || badgeToneVal;
+  const activeCardVariant = pendingCardVariant || cardVariantVal;
+  const componentSizeOptions = getComponentSizeControlOptions(componentCapability);
+  const showElementStyleSections = !componentMeta;
+  const localDraftEntries = Object.values(localDrafts).sort((a, b) => b.updatedAt - a.updatedAt);
+  const localDraftChangeCount = localDraftEntries.reduce((sum, entry) => sum + entry.changes.length, 0);
 
   // ─── Render ──────────────────────────────────────────────────
   return (
@@ -1596,18 +3141,286 @@ export function InspectorPanel({
               </div>
               {showScopeHelp && (
                 <div className="di-help-popover">
-                  同组件 = 忽略激活 / 当前 / 展开等状态类后，共享同一业务类名的元素。
+                  相同元素 = 与当前选中对象属于同一组件或同一基础元素的一组对象；会忽略 selected、disabled、floating 等状态或变体差异。
                 </div>
               )}
               <div className="di-scope-row">
                 <button className={`di-scope-btn${scope === 'current' ? ' di-scope-btn--on' : ''}`} onClick={() => setScope('current')}>当前元素</button>
                 <button className={`di-scope-btn${scope === 'component' ? ' di-scope-btn--on' : ''}`} onClick={() => setScope('component')}>
-                  同组件 {selected && <span className="di-scope-count">{getSameComponentEls(selected).length}</span>}
+                  相同元素 {selected && <span className="di-scope-count">{getSameComponentEls(selected).length}</span>}
                 </button>
               </div>
             </div>
 
-            {/* 文字区（内容+字号+字重+颜色） */}
+            {componentMeta && (
+              <div className="di-section">
+                <div className="di-section-title">组件</div>
+                <div className="di-component-card">
+                  <div className="di-component-head">
+                    <div className="di-component-main">
+                      <span className="di-component-name">{componentDisplayName}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="di-component-locator"
+                      title={`复制定位：${componentSelector}`}
+                      onClick={() => {
+                        copyTextToClipboard(componentSelector)
+                          .then(copied => {
+                            setLocatorMsg(copied ? '已复制' : '复制失败');
+                            setTimeout(() => setLocatorMsg(''), 1400);
+                          })
+                          .catch(() => {
+                            setLocatorMsg('复制失败');
+                            setTimeout(() => setLocatorMsg(''), 1400);
+                          });
+                      }}
+                    >
+                      {locatorMsg || '定位'}
+                    </button>
+                  </div>
+                  <div className="di-component-meta-row">
+                    <span>变体：{componentMeta.variant}</span>
+                    <span>状态：{componentMeta.state}</span>
+                  </div>
+                  {componentCapability && (
+                    <div className="di-component-fields">
+                      {componentEditableSlots.map(slot => (
+                        <label className="di-component-field di-component-field--text" key={slot.key}>
+                          <span>{slot.label}</span>
+                          <input
+                            className="di-component-text-input"
+                            value={componentTextSlotDrafts[slot.key] ?? ''}
+                            onChange={event => updateComponentTextSlot(slot, event.currentTarget.value)}
+                          />
+                        </label>
+                      ))}
+                      {visibleChildSlots.length > 0 && (
+                        <div className="di-component-field di-component-field--children">
+                          <span>{visibleChildSlots.length === 1 ? visibleChildSlots[0].slot.label : '可选项'}</span>
+                          <div className="di-component-child-list">
+                            {visibleChildSlots.map(({ slot, value, element }) => {
+                              const childMeta = element ? getInspectorComponentMeta(element) : null;
+                              const childName = childMeta ? getComponentDisplayName(childMeta) : slot.label;
+                              const childValue = value || childMeta?.variant || childName;
+                              const showChildLabel = visibleChildSlots.length > 1;
+                              return (
+                              <div className={`di-component-child-item${showChildLabel ? ' di-component-child-item--with-label' : ''}`} key={slot.key}>
+                                {showChildLabel && <span className="di-component-child-label">{slot.label}</span>}
+                                <span className="di-component-child-value">{childValue}</span>
+                                <button
+                                  type="button"
+                                  className="di-component-child-select"
+                                  onClick={() => { if (element) selectEl(element); }}
+                                  title={`选择 ${childName}`}
+                                >
+                                  选择
+                                </button>
+                              </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      {componentCapability.editableText && (
+                        <label className="di-component-field di-component-field--text">
+                          <span>文案</span>
+                          <input
+                            className="di-component-text-input"
+                            value={componentTextDraft}
+                            onChange={event => updateComponentText(event.currentTarget.value)}
+                          />
+                        </label>
+                      )}
+                      {componentCapability.variantKind === 'button' && (
+                        <div className="di-component-field">
+                          <span>变体</span>
+                          <div className="di-component-segment" role="group" aria-label="按钮变体">
+                            {BUTTON_VARIANT_OPTIONS.map(option => (
+                              <button
+                                key={option.key}
+                                type="button"
+                                className={`di-component-segment-btn${activeButtonVariant === option.key ? ' di-component-segment-btn--on' : ''}`}
+                                onClick={() => updateComponentVariant(option.key)}
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {componentCapability.variantKind === 'card' && (
+                        <div className="di-component-field">
+                          <span>变体</span>
+                          <div className="di-component-segment" role="group" aria-label="卡片变体">
+                            {CARD_VARIANT_OPTIONS.map(option => (
+                              <button
+                                key={option.key}
+                                type="button"
+                                className={`di-component-segment-btn${activeCardVariant === option.key ? ' di-component-segment-btn--on' : ''}`}
+                                onClick={() => updateCardVariant(option.key)}
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {componentCapability.colorKind === 'icon' && (
+                        <div className="di-component-field">
+                          <span>颜色</span>
+                          <div className="di-component-segment di-component-segment--tone" role="group" aria-label="图标颜色">
+                            {ICON_COLOR_OPTIONS.map(option => (
+                              <button
+                                key={option.key}
+                                type="button"
+                                className={`di-component-segment-btn${activeIconColor === option.key ? ' di-component-segment-btn--on' : ''}`}
+                                onClick={() => updateIconColor(option.key)}
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {componentCapability.toneKind === 'badge' && (
+                        <div className="di-component-field">
+                          <span>色调</span>
+                          <div className="di-component-segment di-component-segment--tone" role="group" aria-label="标签色调">
+                            {BADGE_TONE_OPTIONS.map(option => (
+                              <button
+                                key={option.key}
+                                type="button"
+                                className={`di-component-segment-btn${activeBadgeTone === option.key ? ' di-component-segment-btn--on' : ''}`}
+                                onClick={() => updateBadgeTone(option.key)}
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {componentCapability.sizeKind && (
+                        <div className="di-component-field">
+                          <span>尺寸</span>
+                          <div className="di-component-segment di-component-segment--size" role="group" aria-label="组件尺寸">
+                            {componentSizeOptions.map(option => (
+                              <button
+                                key={option.key}
+                                type="button"
+                                className={`di-component-segment-btn${activeButtonSize === option.key ? ' di-component-segment-btn--on' : ''}`}
+                                onClick={() => updateComponentSize(option.key)}
+                                title={option.title}
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {componentMeta && (
+              <div className="di-section">
+                <div className="di-section-title">外部布局</div>
+                <div className="di-layout-grid">
+                  <div className="di-layout-card di-layout-card--position">
+                    <div className="di-layout-card-title">位置</div>
+                    <div className="di-position-fields" aria-label="移动组件">
+                      {([
+                        { key: 'x', label: 'X', value: (pendingTranslate ?? translateVal).x },
+                        { key: 'y', label: 'Y', value: (pendingTranslate ?? translateVal).y },
+                      ] as const).map(item => (
+                        <div className="di-position-row" key={item.key}>
+                          <span className="di-position-axis">{item.label}</span>
+                          <div className="di-number-stepper">
+                            <input
+                              className="di-position-value di-number-stepper-input"
+                              value={`${Math.round(item.value)}px`}
+                              aria-label={`${item.label} 位置`}
+                              onChange={event => setTranslateAxis(item.key, event.currentTarget.value)}
+                              onFocus={event => event.currentTarget.select()}
+                              onClick={event => event.currentTarget.select()}
+                              onMouseUp={event => event.preventDefault()}
+                            />
+                            <div className="di-number-stepper-buttons">
+                              <button type="button" onClick={() => stepTranslateAxis(item.key, 1)} aria-label={`${item.label} 增加 1px`}>⌃</button>
+                              <button type="button" onClick={() => stepTranslateAxis(item.key, -1)} aria-label={`${item.label} 减少 1px`}>⌄</button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="di-layout-card di-layout-card--size">
+                    <div className="di-layout-card-title">尺寸</div>
+                    {([
+                      { key: 'width', label: 'W', current: widthVal, pending: pendingWidth, mode: widthMode, pendingMode: pendingWidthMode },
+                      { key: 'height', label: 'H', current: heightVal, pending: pendingHeight, mode: heightMode, pendingMode: pendingHeightMode },
+                    ] as const).map(item => {
+                      const cur = displaySizeValue(item.pending, item.current);
+                      const inputVal = sizeDraft[item.key] ?? cur;
+                      const activeMode = item.pendingMode ?? item.mode;
+                      return (
+                        <div className="di-size-row" key={item.key}>
+                          <span className="di-size-axis">{item.label}</span>
+                          <div className="di-number-stepper">
+                            <input
+                              className="di-size-value di-number-stepper-input"
+                              value={inputVal}
+                              aria-label={`${item.label} 自定义尺寸`}
+                              onChange={e => {
+                                setSizeDraft(prev => ({ ...prev, [item.key]: e.target.value }));
+                                setSize(item.key, e.target.value, 'fixed');
+                              }}
+                              onFocus={e => {
+                                setSizeDraft(prev => ({ ...prev, [item.key]: cur }));
+                                e.currentTarget.select();
+                              }}
+                              onClick={e => e.currentTarget.select()}
+                              onMouseUp={e => e.preventDefault()}
+                              onBlur={() => setSizeDraft(prev => {
+                                const next = { ...prev };
+                                delete next[item.key];
+                                return next;
+                              })}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') e.currentTarget.blur();
+                              }}
+                            />
+                            <div className="di-number-stepper-buttons">
+                              <button type="button" onClick={() => stepSize(item.key, inputVal, 1)} aria-label={`${item.label} 增加 1px`}>⌃</button>
+                              <button type="button" onClick={() => stepSize(item.key, inputVal, -1)} aria-label={`${item.label} 减少 1px`}>⌄</button>
+                            </div>
+                          </div>
+                          <select
+                            className="di-size-mode-select"
+                            value={activeMode}
+                            onChange={e => {
+                              const mode = e.target.value as SizeMode;
+                              setSize(item.key, item.current, mode);
+                            }}
+                          >
+                            {SIZE_OPTIONS.map(opt => (
+                              <option key={opt.mode} value={opt.mode}>{opt.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {showElementStyleSections && (
+              <>
+            {/* 文字区（内容 + 一行式文字工具条） */}
             <div className="di-section">
               <div className="di-section-title">文字</div>
               {/* 文字内容 */}
@@ -1624,222 +3437,690 @@ export function InspectorPanel({
                   }}
                 />
               )}
-              {/* 字号 + 字重 + 颜色 三列卡片 */}
-              <div className="di-border-row">
-                {/* 字号 */}
-                <div className="di-border-card">
-                  <div className="di-border-card-title">字号</div>
-                  {(() => {
-                    const curSize = pendingFontSize || fontSizeVal || '—';
-                    const curWeight = pendingFontWeight || fontWeightVal;
-                    const curColor = pendingTextColor || textColorVal;
-                    const matchedToken = getTypographyToken(curSize, curWeight, curColor, typographyTokens);
-                    const curOpt = matchedToken
-                      ? fontSizeOptions.find(opt => opt.key === matchedToken.key)
-                      : null;
-                    return (
-                      <>
-                        <div
-                          className="di-border-style-single di-font-token-trigger"
-                          role="button"
-                          tabIndex={0}
-                          onClick={e => { const r=(e.currentTarget as HTMLElement).getBoundingClientRect(); setDropPos(calcDropPos(r)); setShowWeightDrop(false); setShowStyleDrop(false); setExpandedTextColor(false); setExpandedBorderColor(false); setShowShadowDrop(false); setCustomRadius(''); setSizeDraft({}); setFontSizeCustomDraft(curSize); setShowFontSizeDrop(v=>!v); }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              const r=(e.currentTarget as HTMLElement).getBoundingClientRect();
-                              setDropPos(calcDropPos(r));
-                              setFontSizeCustomDraft(curSize);
-                              setShowFontSizeDrop(v=>!v);
-                            }
-                          }}
-                        >
-                          {curOpt && <span className="di-border-style-label">{curOpt.label}</span>}
-                          <span className={`di-border-style-name${curOpt ? '' : ' di-border-style-name--custom'}`}>{curSize}</span>
-                          <svg width="8" height="5" viewBox="0 0 8 5" fill="none" style={{marginLeft:'auto',flexShrink:0}}><path d="M1 1l3 3 3-3" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                        </div>
-                        {showFontSizeDrop && (
+              {/* 文字样式：组件化预设 + 单项覆盖 */}
+              {(() => {
+                const curSize = pendingFontSize || fontSizeVal || '—';
+                const curWeight = pendingFontWeight || fontWeightVal;
+                const curColor = pendingTextColor || textColorVal;
+                const curStyle = getTypographyStyle(curSize, curWeight, curColor, typographyStyles, typographyTokens);
+                const showTypographyCustomControls = typographyCustomMode || !curStyle;
+                const sizeOptions = fontSizeOptions ?? [];
+                const curSizeOpt = sizeOptions.find(opt => opt.value === curSize);
+                const curWeightOpt = fontWeightOptions.find(o => o.value === curWeight) ?? fontWeightOptions[1];
+                const { label: tcLabel, sub: tcSub, isHardcoded: tcHard } = getDisplayLabel(curColor, tokenMap, colorPalette, tokenLabels);
+                const tcDark = (() => {
+                  const m = curColor.match(/^#([0-9a-f]{6})$/i);
+                  if (!m) return true;
+                  const r = parseInt(m[1].slice(0,2),16);
+                  const g = parseInt(m[1].slice(2,4),16);
+                  const b = parseInt(m[1].slice(4,6),16);
+                  return (r*299 + g*587 + b*114) / 1000 < 128;
+                })();
+                const chevron = (
+                  <svg width="8" height="5" viewBox="0 0 8 5" fill="none" aria-hidden="true">
+                    <path d="M1 1l3 3 3-3" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                );
+
+                return (
+                  <div className={`di-typography-toolbar${showTypographyCustomControls ? ' di-typography-toolbar--custom' : ''}`}>
+                    <div className="di-typography-control-wrap">
+                      <button
+                        className={`di-typography-control ${showTypographyCustomControls ? 'di-typography-control--custom-state' : 'di-typography-control--style-compact'}`}
+                        type="button"
+                        title={showTypographyCustomControls ? '当前为自定义样式，点击可切换预设' : '文字样式'}
+                        onClick={e => {
+                          const r=(e.currentTarget as HTMLElement).getBoundingClientRect();
+                          setDropPos(calcDropPos(r));
+                          setShowFontSizeDrop(false);
+                          setShowWeightDrop(false);
+                          setExpandedTextColor(false);
+                          setShowTypographyStyleDrop(v=>!v);
+                        }}
+                      >
+                        {showTypographyCustomControls ? (
+                          <span className="di-token-name--plain">自定义样式</span>
+                        ) : (
                           <>
-                            <div style={{position:'fixed',inset:0,zIndex:99997}} onClick={()=>setShowFontSizeDrop(false)} />
-                            <div className="di-border-style-drop" style={{position:'fixed',top:dropPos.top,left:dropPos.left,zIndex:99998}}>
-                              {fontSizeOptions.map(opt => (
-                                <button key={opt.key}
-                                  className={`di-border-style-drop-item${curOpt?.key===opt.key?' di-border-style-drop-item--on':''}`}
-                                  onClick={() => {
-                                    setPendingFontSize(opt.value);
-                                    setPendingFontWeight(opt.fontWeight);
-                                    setPendingTextColor(opt.color);
-                                    liveApplyMany([
-                                      { prop: 'font-size', val: opt.value },
-                                      { prop: 'font-weight', val: opt.fontWeight },
-                                      { prop: 'color', val: opt.color },
-                                    ]);
-                                    setShowFontSizeDrop(false);
-                                  }}>
-                                  <span className="di-border-style-label">{opt.label}</span>
-                                  <span className="di-border-style-name">{`${opt.value} / ${opt.fontWeight}`}</span>
-                                </button>
-                              ))}
-                              <div className="di-dropdown-custom">
-                                <span className="di-dropdown-custom-label">自定义</span>
-                                <input
-                                  className="di-dropdown-custom-input"
-                                  value={fontSizeCustomDraft}
-                                  placeholder="13px"
-                                  onChange={(e) => setFontSizeCustomDraft(e.target.value)}
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                                <button
-                                  type="button"
-                                  className="di-dropdown-custom-apply"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (!fontSizeCustomDraft.trim()) return;
-                                    setPendingFontSize(fontSizeCustomDraft.trim());
-                                    liveApply('font-size', fontSizeCustomDraft.trim());
-                                    setShowFontSizeDrop(false);
-                                  }}
-                                >
-                                  应用
-                                </button>
+                            <span className="di-token-name">{curStyle?.label}</span>
+                            {chevron}
+                          </>
+                        )}
+                      </button>
+                      {showTypographyStyleDrop && (
+                        <>
+                          <div style={{position:'fixed',inset:0,zIndex:99997}} onClick={()=>setShowTypographyStyleDrop(false)} />
+                          <div className="di-border-style-drop di-typography-style-drop" style={{position:'fixed',top:dropPos.top,left:dropPos.left,zIndex:99998}}>
+                            {typographyStyles.map(style => (
+                              <button key={style.key}
+                                className={`di-border-style-drop-item${!showTypographyCustomControls && curStyle?.key===style.key?' di-border-style-drop-item--on':''}`}
+                                onClick={() => {
+                                  applyTypographyStyle(style);
+                                  setShowTypographyStyleDrop(false);
+                                }}>
+                                <span className="di-border-style-label">{style.label}</span>
+                                <span className="di-typography-style-drop-meta">
+                                  <span className="di-border-style-name">{`${style.value} / ${style.fontWeight}`}</span>
+                                  <span className="di-shadow-drop-value">{style.colorVar || style.color}</span>
+                                </span>
+                              </button>
+                            ))}
+                            {showTypographyCustomControls ? (
+                              <div className="di-typography-custom-note">
+                                <span className="di-border-style-label">自定义模式</span>
+                                <span className="di-shadow-drop-value">使用右侧字号 / 字重 / 颜色单项调整</span>
                               </div>
-                            </div>
-                          </>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className="di-typography-custom-action"
+                                onClick={() => {
+                                  setTypographyCustomMode(true);
+                                  setShowTypographyStyleDrop(false);
+                                }}
+                              >
+                                <span className="di-border-style-label">基于当前样式自定义</span>
+                                <span className="di-shadow-drop-value">进入字号 / 字重 / 颜色单项调整</span>
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
 
-                {/* 字重：单值 + 下拉 */}
-                <div className="di-border-card" style={{ position: 'relative' }}>
-                  <div className="di-border-card-title">字重</div>
-                  {(() => {
-                    const cur = pendingFontWeight || fontWeightVal;
-                    const curOpt = fontWeightOptions.find(o => o.value === cur) ?? fontWeightOptions[1];
-                    return (
+                    {showTypographyCustomControls ? (
                       <>
-                        <button className="di-border-style-single" style={{ marginTop: 4 }}
-                          onClick={e => { const r=(e.currentTarget as HTMLElement).getBoundingClientRect(); setDropPos(calcDropPos(r)); setShowWeightDrop(v=>!v); }}>
-                          <span className="di-border-style-label" style={curOpt.value === 'none' ? { color: '#9ca3af' } : undefined}>{curOpt.label}</span>
-                          <span className="di-border-style-name">{cur}</span>
-                          <svg width="8" height="5" viewBox="0 0 8 5" fill="none" style={{marginLeft:'auto',flexShrink:0}}><path d="M1 1l3 3 3-3" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                        </button>
-                        {showWeightDrop && (
-                          <>
-                            <div style={{position:'fixed',inset:0,zIndex:99997}} onClick={()=>setShowWeightDrop(false)} />
-                            <div className="di-border-style-drop" style={{position:'fixed',top:dropPos.top,left:dropPos.left,zIndex:99998}}>
-                              {fontWeightOptions.map(opt => (
-                                <button key={opt.value}
-                                  className={`di-border-style-drop-item${cur===opt.value?' di-border-style-drop-item--on':''}`}
-                                  onClick={() => { setPendingFontWeight(opt.value); liveApply('font-weight',opt.value); setShowWeightDrop(false); }}>
-                                  <span className="di-border-style-label" style={opt.value === 'none' ? { color: '#9ca3af' } : undefined}>{opt.label}</span>
-                                  <span className="di-border-style-name">{opt.value}</span>
-                                </button>
-                              ))}
+                    <div className="di-typography-control-wrap">
+                      <button
+                        className={`di-typography-control di-typography-control--size${curSizeOpt ? ' di-typography-control--size-token' : ''}`}
+                        type="button"
+                        title="字号"
+                        onClick={e => {
+                          const r=(e.currentTarget as HTMLElement).getBoundingClientRect();
+                          setDropPos(calcDropPos(r));
+                          setShowTypographyStyleDrop(false);
+                          setShowWeightDrop(false);
+                          setExpandedTextColor(false);
+                          setShowStyleDrop(false);
+                          setExpandedBorderColor(false);
+                          setShowShadowDrop(false);
+                          setCustomRadius('');
+                          setSizeDraft({});
+                          setFontSizeCustomDraft(curSize === '—' ? '' : curSize);
+                          setShowFontSizeDrop(v=>!v);
+                        }}
+                      >
+                        {curSizeOpt && <span className="di-border-style-label">{curSizeOpt.label}</span>}
+                        <span className="di-typography-control-value">{curSize}</span>
+                        {chevron}
+                      </button>
+                      {showFontSizeDrop && (
+                        <>
+                          <div style={{position:'fixed',inset:0,zIndex:99997}} onClick={()=>setShowFontSizeDrop(false)} />
+                          <div className="di-border-style-drop di-typography-size-drop" style={{position:'fixed',top:dropPos.top,left:dropPos.left,zIndex:99998}}>
+                            {sizeOptions.map(opt => (
+                              <button key={opt.value}
+                                className={`di-border-style-drop-item${curSizeOpt?.value===opt.value?' di-border-style-drop-item--on':''}`}
+                                onClick={() => {
+                                  setTypographyCustomMode(true);
+                                  setPendingFontSize(opt.value);
+                                  liveApply('font-size', opt.value);
+                                  setShowFontSizeDrop(false);
+                                }}>
+                                <span className="di-border-style-label">{opt.label}</span>
+                                <span className="di-border-style-name">{opt.value}</span>
+                              </button>
+                            ))}
+                            <div className="di-dropdown-custom">
+                              <input
+                                className="di-dropdown-custom-input"
+                                value={fontSizeCustomDraft}
+                                placeholder="13px"
+                                onChange={(e) => {
+                                  const draft = e.target.value;
+                                  const next = normalizeCssLengthInput(draft);
+                                  setFontSizeCustomDraft(draft);
+                                  if (!next || !supportsCssValue('font-size', next)) return;
+                                  setTypographyCustomMode(true);
+                                  setPendingFontSize(next);
+                                  liveApply('font-size', next);
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    const next = normalizeCssLengthInput(fontSizeCustomDraft);
+                                    if (!next || !supportsCssValue('font-size', next)) return;
+                                    setTypographyCustomMode(true);
+                                    setPendingFontSize(next);
+                                    liveApply('font-size', next);
+                                    setShowFontSizeDrop(false);
+                                  }
+                                }}
+                              />
+                              <button
+                                type="button"
+                                className="di-dropdown-custom-apply"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const next = normalizeCssLengthInput(fontSizeCustomDraft);
+                                  if (!next || !supportsCssValue('font-size', next)) return;
+                                  setTypographyCustomMode(true);
+                                  setPendingFontSize(next);
+                                  liveApply('font-size', next);
+                                  setShowFontSizeDrop(false);
+                                }}
+                              >
+                                应用
+                              </button>
                             </div>
-                          </>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
 
-                {/* 颜色：卡片式 */}
-                {(() => {
-                  const tcVal = pendingTextColor || textColorVal;
-                  const { label: tcLabel, sub: tcSub, isHardcoded: tcHard } = getDisplayLabel(tcVal, tokenMap, colorPalette, tokenLabels);
-                  const tcDark = (() => { const m=tcVal.match(/^#([0-9a-f]{6})$/i); if(!m) return true; const r=parseInt(m[1].slice(0,2),16),g=parseInt(m[1].slice(2,4),16),b=parseInt(m[1].slice(4,6),16); return (r*299+g*587+b*114)/1000<128; })();
-                  return (
-                    <div className="di-border-card" style={{ position: 'relative' }}>
-                      <div className="di-border-card-title">颜色</div>
-                      <div className="di-border-color-body" style={{ marginTop: 4 }}>
-                        <button className={`di-swatch-btn${tcDark?' di-swatch-btn--dark':''}`}
-                          style={{ background: tcVal||'#1d293d' }}
-                          onClick={e => { const r=(e.currentTarget as HTMLElement).getBoundingClientRect(); setDropPos(calcDropPos(r)); setExpandedTextColor(v=>!v); }}>
-                          <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke={tcDark?'#fff':'#374151'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        </button>
-                        <div className="di-border-color-info">
+                    <div className="di-typography-control-wrap">
+                      <button
+                        className="di-typography-control di-typography-control--weight"
+                        type="button"
+                        title="字重"
+                        onClick={e => {
+                          const r=(e.currentTarget as HTMLElement).getBoundingClientRect();
+                          setDropPos(calcDropPos(r));
+                          setShowTypographyStyleDrop(false);
+                          setShowFontSizeDrop(false);
+                          setExpandedTextColor(false);
+                          setShowWeightDrop(v=>!v);
+                        }}
+                      >
+                        <span className="di-border-style-label" style={curWeightOpt.value === 'none' ? { color: '#9ca3af' } : undefined}>{curWeightOpt.label}</span>
+                        <span className="di-typography-control-value">{curWeight}</span>
+                        {chevron}
+                      </button>
+                      {showWeightDrop && (
+                        <>
+                          <div style={{position:'fixed',inset:0,zIndex:99997}} onClick={()=>setShowWeightDrop(false)} />
+                          <div className="di-border-style-drop" style={{position:'fixed',top:dropPos.top,left:dropPos.left,zIndex:99998}}>
+                            {fontWeightOptions.map(opt => (
+                              <button key={opt.value}
+                                className={`di-border-style-drop-item${curWeight===opt.value?' di-border-style-drop-item--on':''}`}
+                                onClick={() => { setTypographyCustomMode(true); setPendingFontWeight(opt.value); liveApply('font-weight',opt.value); setShowWeightDrop(false); }}>
+                                <span className="di-border-style-label" style={opt.value === 'none' ? { color: '#9ca3af' } : undefined}>{opt.label}</span>
+                                <span className="di-border-style-name">{opt.value}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="di-typography-control-wrap">
+                      <button
+                        className="di-typography-control di-typography-control--color"
+                        type="button"
+                        title="颜色"
+                        onClick={e => {
+                          const r=(e.currentTarget as HTMLElement).getBoundingClientRect();
+                          setDropPos(calcDropPos(r));
+                          setShowTypographyStyleDrop(false);
+                          setShowFontSizeDrop(false);
+                          setShowWeightDrop(false);
+                          setExpandedTextColor(v=>!v);
+                        }}
+                      >
+                        <span className={`di-typography-color-swatch${tcDark?' di-typography-color-swatch--dark':''}`} style={{ background: curColor || '#1d293d' }}>
+                          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true">
+                            <path d="M1 1l4 4 4-4" stroke={tcDark?'#fff':'#374151'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </span>
+                        <span className="di-typography-color-copy">
                           <span className={tcHard?'di-token-name--plain':'di-token-name'}>{tcLabel}</span>
                           {tcSub && <span className="di-hex">{tcSub}</span>}
-                        </div>
-                      </div>
+                        </span>
+                      </button>
                       {expandedTextColor && (
-                        <ColorDropdown value={tcVal} pos={dropPos} colorPalette={colorPalette}
-                          onChange={c=>{ setPendingTextColor(c); liveApply('color',c); }}
+                        <ColorDropdown value={curColor} pos={dropPos} colorPalette={colorPalette}
+                          onChange={c=>{ setTypographyCustomMode(true); setPendingTextColor(c); liveApply('color',c); }}
                           onClose={()=>setExpandedTextColor(false)}
                           onAddToken={v=>handleAddToken(v,'color')}
                         />
                       )}
                     </div>
-                  );
-                })()}
-              </div>
+                      </>
+                    ) : (
+                      <div className="di-typography-readout" aria-label="当前组件文字样式参数">
+                        <span className="di-typography-readout-line">{`${curSize} / ${curWeight}`}</span>
+                        <span className="di-typography-readout-token">{curStyle?.colorVar || curColor}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
-            {/* 颜色区 */}
-            {Object.keys(colors).length > 0 && (
-              <div className="di-section">
-                <div className="di-section-title">颜色</div>
-                {COLOR_PROPS.filter(({ prop }) => colors[prop]).map(({ label, prop }) => {
-                  const val = pendingColors[prop] ?? colors[prop];
-                  const token = tokenMap[val];
-                  const isDark = (() => {
-                    const m = val.match(/^#([0-9a-f]{6})$/i);
-                    if (!m) return false;
-                    const r = parseInt(m[1].slice(0,2),16), g = parseInt(m[1].slice(2,4),16), b = parseInt(m[1].slice(4,6),16);
-                    return (r*299 + g*587 + b*114) / 1000 < 128;
-                  })();
-                  const isExpanded = expandedColor === prop;
-                  // 所有颜色 token 列表（从 tokenMap 反转）
-                  const tokenList = Object.entries(tokenMap)
-                    .filter(([v]) => v.startsWith('#') && v !== val)
-                    .map(([v, t]) => ({ val: v, token: t }));
-                  const { label: dispLabel, sub: dispSub, isHardcoded: dispHard } = getDisplayLabel(val, tokenMap, colorPalette, tokenLabels);
-                  return (
-                    <div key={prop} className="di-color-row">
-                      <span className="di-attr-label">{label}</span>
+            {/* 容器区 */}
+            {!isTextOnlyTarget && (
+            <div className="di-section">
+              <div className="di-section-title">容器</div>
+              {(() => {
+                const curBackgroundColor = pendingColors['background-color'] ?? colors['background-color'] ?? 'transparent';
+                const curBorderWidth = pendingBorderWidth || borderWidthVal || '0px';
+                const curBorderStyleValue = pendingBorderStyle || borderStyleVal || 'none';
+                const curBorderColor = pendingBorderColor || borderColorVal || 'transparent';
+                const curBorderRadius = pendingRadius || radiusVal || '0px';
+                const curContainerPreset = getContainerStyle(curBackgroundColor, curBorderWidth, curBorderStyleValue, curBorderColor, curBorderRadius, containerStyles);
+                const showContainerCustomControls = containerCustomMode || !curContainerPreset;
+                const curLineOpt = BORDER_STYLE_OPTIONS.find(o => o.value === curBorderStyleValue) ?? BORDER_STYLE_OPTIONS[0];
+                const curRadiusPreset = matchPreset(radiusPresets, curBorderRadius);
+                const { label: backgroundLabel, sub: backgroundSub, isHardcoded: backgroundHard } = getDisplayLabel(curBackgroundColor, tokenMap, colorPalette, tokenLabels);
+                const { label: borderColorLabel, sub: borderColorSub, isHardcoded: borderColorHard } = getDisplayLabel(curBorderColor, tokenMap, colorPalette, tokenLabels);
+                const backgroundDark = (() => {
+                  const m = curBackgroundColor.match(/^#([0-9a-f]{6})$/i);
+                  if (!m) return false;
+                  const r = parseInt(m[1].slice(0,2),16);
+                  const g = parseInt(m[1].slice(2,4),16);
+                  const b = parseInt(m[1].slice(4,6),16);
+                  return (r*299 + g*587 + b*114) / 1000 < 128;
+                })();
+                const borderColorDark = (() => {
+                  const m = curBorderColor.match(/^#([0-9a-f]{6})$/i);
+                  if (!m) return false;
+                  const r = parseInt(m[1].slice(0,2),16);
+                  const g = parseInt(m[1].slice(2,4),16);
+                  const b = parseInt(m[1].slice(4,6),16);
+                  return (r*299 + g*587 + b*114) / 1000 < 128;
+                })();
+                const backgroundIsEmpty = curBackgroundColor === 'transparent' || !curBackgroundColor;
+                const borderColorIsEmpty = curBorderColor === 'transparent' || !curBorderColor;
+                const borderSummary = `${curBorderWidth} / ${curLineOpt.title} / ${curBorderRadius}`;
+                const containerSummary = `${backgroundLabel} / ${borderSummary}`;
+                const chevron = (
+                  <svg width="8" height="5" viewBox="0 0 8 5" fill="none" aria-hidden="true">
+                    <path d="M1 1l3 3 3-3" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                );
+                const ensureVisibleBorder = () => {
+                  if (curBorderWidth === '0px') {
+                    setPendingBorderWidth('1px');
+                    liveApply('border-width', '1px');
+                  }
+                  if (curBorderStyleValue === 'none') {
+                    setPendingBorderStyle('solid');
+                    liveApply('border-style', 'solid');
+                  }
+                };
+
+                return (
+                  <div className={`di-container-toolbar${showContainerCustomControls ? ' di-container-toolbar--custom' : ''}`}>
+                    <div className="di-typography-control-wrap">
                       <button
-                        className={`di-swatch-btn${isDark ? ' di-swatch-btn--dark' : ''}`}
-                        style={{ background: val }}
-                        onClick={e => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); setDropPos(calcDropPos(r)); setExpandedColor(isExpanded ? null : prop); }}
+                        className="di-typography-control di-typography-control--style-compact"
+                        type="button"
+                        title="容器样式"
+                        onClick={e => {
+                          const r=(e.currentTarget as HTMLElement).getBoundingClientRect();
+                          setDropPos(calcDropPos(r));
+                          setExpandedBorderColor(false);
+                          setShowBorderWidthDrop(false);
+                          setShowStyleDrop(false);
+                          setShowRadiusDrop(false);
+                          setShowContainerStyleDrop(v=>!v);
+                        }}
                       >
-                        <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
-                          <path d="M1 1l4 4 4-4" stroke={isDark ? '#fff' : '#374151'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
+                        <span className={!showContainerCustomControls ? 'di-token-name' : 'di-token-name--plain'}>
+                          {!showContainerCustomControls ? curContainerPreset?.label : '自定义'}
+                        </span>
+                        {chevron}
                       </button>
-                      <div className="di-color-info">
-                        <span className={dispHard ? 'di-token-name--plain' : 'di-token-name'}>{dispLabel}</span>
-                        {dispSub && <span className="di-hex">{dispSub}</span>}
-                      </div>
-                      {isExpanded && (
-                        <ColorDropdown value={val} pos={dropPos} colorPalette={colorPalette}
-                          onChange={(c, _tk) => { setPendingColors(prev => ({ ...prev, [prop]: c })); liveApply(prop, c); }}
-                          onClose={() => setExpandedColor(null)}
-                          onAddToken={v=>handleAddToken(v, prop)}
-                        />
+                      {showContainerStyleDrop && (
+                        <>
+                          <div style={{position:'fixed',inset:0,zIndex:99997}} onClick={()=>setShowContainerStyleDrop(false)} />
+                          <div className="di-border-style-drop di-container-preset-drop" style={{position:'fixed',top:dropPos.top,left:dropPos.left,zIndex:99998}}>
+                            {containerStyles.map(style => (
+                              <button key={style.key}
+                                className={`di-border-style-drop-item${!showContainerCustomControls && curContainerPreset?.key===style.key?' di-border-style-drop-item--on':''}`}
+                                onClick={() => {
+                                  applyContainerStyle(style);
+                                  setShowContainerStyleDrop(false);
+                                }}>
+                                <span className="di-border-style-label">{style.label}</span>
+                                <span className="di-typography-style-drop-meta">
+                                  <span className="di-border-style-name">{`${style.backgroundVar || style.backgroundColor} / ${style.borderWidth} ${BORDER_STYLE_OPTIONS.find(o => o.value === style.borderStyle)?.title ?? style.borderStyle} / ${style.borderRadius}`}</span>
+                                  <span className="di-shadow-drop-value">{style.colorVar || style.borderColor}</span>
+                                </span>
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              className={`di-border-style-drop-item${showContainerCustomControls ? ' di-border-style-drop-item--on' : ''}`}
+                              onClick={() => {
+                                setContainerCustomMode(true);
+                                setShowContainerStyleDrop(false);
+                              }}
+                            >
+                              <span className="di-border-style-label">自定义</span>
+                              <span className="di-typography-style-drop-meta">
+                                <span className="di-border-style-name">{containerSummary}</span>
+                                <span className="di-shadow-drop-value">使用右侧单项调整</span>
+                              </span>
+                            </button>
+                          </div>
+                        </>
                       )}
                     </div>
-                  );
-                })}
-              </div>
+
+                    {showContainerCustomControls ? (
+                      <>
+                        <div className="di-typography-control-wrap">
+                          <button
+                            className="di-typography-control di-typography-control--color"
+                            type="button"
+                            title="背景色"
+                            onClick={e => {
+                              const r=(e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setDropPos(calcDropPos(r));
+                              setShowContainerStyleDrop(false);
+                              setExpandedBorderColor(false);
+                              setShowBorderWidthDrop(false);
+                              setShowStyleDrop(false);
+                              setShowRadiusDrop(false);
+                              setExpandedColor(expandedColor === 'background-color' ? null : 'background-color');
+                            }}
+                          >
+                            <span
+                              className={`di-typography-color-swatch${backgroundDark?' di-typography-color-swatch--dark':''}${backgroundIsEmpty ? ' di-swatch-btn--empty' : ''}`}
+                              style={{ background: backgroundIsEmpty ? undefined : curBackgroundColor }}
+                            >
+                              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true">
+                                <path d="M1 1l4 4 4-4" stroke={backgroundIsEmpty ? '#9ca3af' : backgroundDark?'#fff':'#374151'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </span>
+                            <span className="di-typography-color-copy">
+                              <span className={backgroundHard || backgroundIsEmpty ? 'di-token-name--plain':'di-token-name'}>{backgroundIsEmpty ? '未设置' : backgroundLabel}</span>
+                              {backgroundSub && !backgroundIsEmpty && <span className="di-hex">{backgroundSub}</span>}
+                            </span>
+                          </button>
+                          {expandedColor === 'background-color' && (
+                            <ColorDropdown value={backgroundIsEmpty ? '' : curBackgroundColor} pos={dropPos} colorPalette={colorPalette}
+                              onChange={c => {
+                                setContainerCustomMode(true);
+                                setPendingColors(prev => ({ ...prev, 'background-color': c }));
+                                liveApply('background-color', c);
+                              }}
+                              onClose={() => setExpandedColor(null)}
+                              onAddToken={v=>handleAddToken(v,'background-color')}
+                            />
+                          )}
+                        </div>
+
+                        <div className="di-typography-control-wrap">
+                          <button
+                            className="di-typography-control di-typography-control--color"
+                            type="button"
+                            title="边框颜色"
+                            onClick={e => {
+                              const r=(e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setDropPos(calcDropPos(r));
+                              setShowContainerStyleDrop(false);
+                              setExpandedColor(null);
+                              setShowBorderWidthDrop(false);
+                              setShowStyleDrop(false);
+                              setShowRadiusDrop(false);
+                              setExpandedBorderColor(v=>!v);
+                            }}
+                          >
+                            <span
+                              className={`di-typography-color-swatch${borderColorDark?' di-typography-color-swatch--dark':''}${borderColorIsEmpty ? ' di-swatch-btn--empty' : ''}`}
+                              style={{ background: borderColorIsEmpty ? undefined : curBorderColor }}
+                            >
+                              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true">
+                                <path d="M1 1l4 4 4-4" stroke={borderColorIsEmpty ? '#9ca3af' : borderColorDark?'#fff':'#374151'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </span>
+                            <span className="di-typography-color-copy">
+                              <span className={borderColorHard || borderColorIsEmpty ? 'di-token-name--plain':'di-token-name'}>{borderColorIsEmpty ? '未设置' : borderColorLabel}</span>
+                              {borderColorSub && !borderColorIsEmpty && <span className="di-hex">{borderColorSub}</span>}
+                            </span>
+                          </button>
+                          {expandedBorderColor && (
+                            <ColorDropdown value={borderColorIsEmpty ? '' : curBorderColor} pos={dropPos} colorPalette={colorPalette}
+                              onChange={c => {
+                                setContainerCustomMode(true);
+                                setPendingBorderColor(c);
+                                liveApply('border-color', c);
+                                ensureVisibleBorder();
+                              }}
+                              onClose={() => setExpandedBorderColor(false)}
+                              onAddToken={v=>handleAddToken(v,'border-color')}
+                            />
+                          )}
+                        </div>
+
+                        <div className="di-typography-control-wrap">
+                          <button
+                            className="di-typography-control di-border-control--width"
+                            type="button"
+                            title="边框粗细"
+                            onClick={e => {
+                              const r=(e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setDropPos(calcDropPos(r));
+                              setShowContainerStyleDrop(false);
+                              setExpandedBorderColor(false);
+                              setShowStyleDrop(false);
+                              setShowRadiusDrop(false);
+                              setShowBorderWidthDrop(v=>!v);
+                            }}
+                          >
+                            <span className="di-typography-control-value">{curBorderWidth}</span>
+                            {chevron}
+                          </button>
+                          {showBorderWidthDrop && (
+                            <>
+                              <div style={{position:'fixed',inset:0,zIndex:99997}} onClick={()=>setShowBorderWidthDrop(false)} />
+                              <div className="di-border-style-drop" style={{position:'fixed',top:dropPos.top,left:dropPos.left,zIndex:99998}}>
+                                {borderWidthSteps.map(step => (
+                                  <button key={step}
+                                    className={`di-border-style-drop-item${curBorderWidth===step?' di-border-style-drop-item--on':''}`}
+                                    onClick={() => {
+                                      setContainerCustomMode(true);
+                                      setPendingBorderWidth(step);
+                                      liveApply('border-width', step);
+                                      if (step === '0px') {
+                                        setPendingBorderStyle('none');
+                                        liveApply('border-style', 'none');
+                                      } else if (curBorderStyleValue === 'none') {
+                                        setPendingBorderStyle('solid');
+                                        liveApply('border-style', 'solid');
+                                      }
+                                      setShowBorderWidthDrop(false);
+                                    }}>
+                                    <span className="di-border-style-name">{step}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="di-typography-control-wrap">
+                          <button
+                            className="di-typography-control di-border-control--line"
+                            type="button"
+                            title="边框线型"
+                            onClick={e => {
+                              const r=(e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setDropPos(calcDropPos(r));
+                              setShowContainerStyleDrop(false);
+                              setExpandedBorderColor(false);
+                              setShowBorderWidthDrop(false);
+                              setShowRadiusDrop(false);
+                              setShowStyleDrop(v=>!v);
+                            }}
+                          >
+                            <span className="di-border-style-label" style={curLineOpt.value === 'none' ? { color: '#9ca3af' } : undefined}>{curLineOpt.label}</span>
+                            <span className="di-typography-control-value">{curLineOpt.title}</span>
+                            {chevron}
+                          </button>
+                          {showStyleDrop && (
+                            <>
+                              <div style={{position:'fixed',inset:0,zIndex:99997}} onClick={() => setShowStyleDrop(false)} />
+                              <div className="di-border-style-drop" style={{position:'fixed',top:dropPos.top,left:dropPos.left,zIndex:99998}}>
+                                {BORDER_STYLE_OPTIONS.map(opt => (
+                                  <button key={opt.value}
+                                    className={`di-border-style-drop-item${curBorderStyleValue===opt.value?' di-border-style-drop-item--on':''}`}
+                                    onClick={() => {
+                                      setContainerCustomMode(true);
+                                      setPendingBorderStyle(opt.value);
+                                      liveApply('border-style', opt.value);
+                                      if (opt.value === 'none') {
+                                        setPendingBorderWidth('0px');
+                                        liveApply('border-width', '0px');
+                                      } else if (curBorderWidth === '0px') {
+                                        setPendingBorderWidth('1px');
+                                        liveApply('border-width', '1px');
+                                      }
+                                      setShowStyleDrop(false);
+                                    }}>
+                                    <span className="di-border-style-label" style={opt.value === 'none' ? { color: '#9ca3af' } : undefined}>{opt.label}</span>
+                                    <span className="di-border-style-name">{opt.title}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="di-typography-control-wrap">
+                          <button
+                            className="di-typography-control di-border-control--radius"
+                            type="button"
+                            title="圆角"
+                            onClick={e => {
+                              const r=(e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setDropPos(calcDropPos(r));
+                              setShowContainerStyleDrop(false);
+                              setExpandedBorderColor(false);
+                              setShowBorderWidthDrop(false);
+                              setShowStyleDrop(false);
+                              setCustomRadius(curBorderRadius === '0px' ? '' : curBorderRadius);
+                              setShowRadiusDrop(v=>!v);
+                            }}
+                          >
+                            {curRadiusPreset && <span className="di-border-style-label">{curRadiusPreset.label}</span>}
+                            <span className="di-typography-control-value">{curBorderRadius}</span>
+                            {chevron}
+                          </button>
+                          {showRadiusDrop && (
+                            <>
+                              <div style={{position:'fixed',inset:0,zIndex:99997}} onClick={() => setShowRadiusDrop(false)} />
+                              <div className="di-border-style-drop di-radius-drop" style={{position:'fixed',top:dropPos.top,left:dropPos.left,zIndex:99998}}>
+                                {radiusPresets.map(opt => (
+                                  <button key={opt.label}
+                                    className={`di-border-style-drop-item${curRadiusPreset?.value===opt.value?' di-border-style-drop-item--on':''}`}
+                                    onClick={() => {
+                                      setContainerCustomMode(true);
+                                      setPendingRadius(opt.value);
+                                      setCustomRadius('');
+                                      liveApply('border-radius', opt.value);
+                                      setShowRadiusDrop(false);
+                                    }}>
+                                    <span className="di-border-style-label">{opt.label}</span>
+                                    {opt.sub && <span className="di-border-style-name">{opt.sub}</span>}
+                                  </button>
+                                ))}
+                                <div className="di-dropdown-custom">
+                                  <input
+                                    className="di-dropdown-custom-input"
+                                    value={customRadius}
+                                    placeholder="12px"
+                                    onChange={(e) => {
+                                      const draft = e.target.value;
+                                      const next = normalizeCssLengthInput(draft);
+                                      setCustomRadius(draft);
+                                      if (!next || !supportsCssValue('border-radius', next)) return;
+                                      setContainerCustomMode(true);
+                                      setPendingRadius(next);
+                                      liveApply('border-radius', next);
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        const next = normalizeCssLengthInput(customRadius);
+                                        if (!next || !supportsCssValue('border-radius', next)) return;
+                                        setContainerCustomMode(true);
+                                        setPendingRadius(next);
+                                        liveApply('border-radius', next);
+                                        setShowRadiusDrop(false);
+                                      }
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="di-dropdown-custom-apply"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const next = normalizeCssLengthInput(customRadius);
+                                      if (!next || !supportsCssValue('border-radius', next)) return;
+                                      setContainerCustomMode(true);
+                                      setPendingRadius(next);
+                                      liveApply('border-radius', next);
+                                      setShowRadiusDrop(false);
+                                    }}
+                                  >
+                                    应用
+                                  </button>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="di-typography-readout" aria-label="当前容器样式参数">
+                        <span className="di-typography-readout-line">{containerSummary}</span>
+                        <span className="di-typography-readout-token">
+                          {`${curContainerPreset?.backgroundVar || curBackgroundColor} / ${curContainerPreset?.colorVar || curBorderColor}`}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
             )}
 
             {/* 布局区 */}
+            {!componentMeta && (
             <div className="di-section">
               <div className="di-section-title">布局</div>
               <div className="di-layout-grid">
-                <div className="di-layout-card">
+                <div className="di-layout-card di-layout-card--position">
                   <div className="di-layout-card-title">位置</div>
-                  <div className="di-nudge-pad" aria-label="移动元素">
-                    <button className="di-nudge-btn di-nudge-btn--up" onClick={() => nudgeSelected(0, -1)} title="上移 1px">↑</button>
-                    <button className="di-nudge-btn di-nudge-btn--left" onClick={() => nudgeSelected(-1, 0)} title="左移 1px">←</button>
-                    <div className="di-nudge-readout">
-                      <span>X {Math.round((pendingTranslate ?? translateVal).x)}</span>
-                      <span>Y {Math.round((pendingTranslate ?? translateVal).y)}</span>
-                    </div>
-                    <button className="di-nudge-btn di-nudge-btn--right" onClick={() => nudgeSelected(1, 0)} title="右移 1px">→</button>
-                    <button className="di-nudge-btn di-nudge-btn--down" onClick={() => nudgeSelected(0, 1)} title="下移 1px">↓</button>
+                  <div className="di-position-fields" aria-label="移动元素">
+                    {([
+                      { key: 'x', label: 'X', value: (pendingTranslate ?? translateVal).x },
+                      { key: 'y', label: 'Y', value: (pendingTranslate ?? translateVal).y },
+                    ] as const).map(item => (
+                      <div className="di-position-row" key={item.key}>
+                        <span className="di-position-axis">{item.label}</span>
+                        <div className="di-number-stepper">
+                          <input
+                            className="di-position-value di-number-stepper-input"
+                            value={`${Math.round(item.value)}px`}
+                            aria-label={`${item.label} 位置`}
+                            onChange={event => setTranslateAxis(item.key, event.currentTarget.value)}
+                            onFocus={event => event.currentTarget.select()}
+                            onClick={event => event.currentTarget.select()}
+                            onMouseUp={event => event.preventDefault()}
+                          />
+                          <div className="di-number-stepper-buttons">
+                            <button type="button" onClick={() => stepTranslateAxis(item.key, 1)} aria-label={`${item.label} 增加 1px`}>⌃</button>
+                            <button type="button" onClick={() => stepTranslateAxis(item.key, -1)} aria-label={`${item.label} 减少 1px`}>⌄</button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -1855,29 +4136,35 @@ export function InspectorPanel({
                     return (
                       <div className="di-size-row" key={item.key}>
                         <span className="di-size-axis">{item.label}</span>
-                        <input
-                          className="di-size-value"
-                          value={inputVal}
-                          aria-label={`${item.label} 自定义尺寸`}
-                          onChange={e => {
-                            setSizeDraft(prev => ({ ...prev, [item.key]: e.target.value }));
-                            setSize(item.key, e.target.value, 'fixed');
-                          }}
-                          onFocus={e => {
-                            setSizeDraft(prev => ({ ...prev, [item.key]: cur }));
-                            e.currentTarget.select();
-                          }}
-                          onClick={e => e.currentTarget.select()}
-                          onMouseUp={e => e.preventDefault()}
-                          onBlur={() => setSizeDraft(prev => {
-                            const next = { ...prev };
-                            delete next[item.key];
-                            return next;
-                          })}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') e.currentTarget.blur();
-                          }}
-                        />
+                        <div className="di-number-stepper">
+                          <input
+                            className="di-size-value di-number-stepper-input"
+                            value={inputVal}
+                            aria-label={`${item.label} 自定义尺寸`}
+                            onChange={e => {
+                              setSizeDraft(prev => ({ ...prev, [item.key]: e.target.value }));
+                              setSize(item.key, e.target.value, 'fixed');
+                            }}
+                            onFocus={e => {
+                              setSizeDraft(prev => ({ ...prev, [item.key]: cur }));
+                              e.currentTarget.select();
+                            }}
+                            onClick={e => e.currentTarget.select()}
+                            onMouseUp={e => e.preventDefault()}
+                            onBlur={() => setSizeDraft(prev => {
+                              const next = { ...prev };
+                              delete next[item.key];
+                              return next;
+                            })}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') e.currentTarget.blur();
+                            }}
+                          />
+                          <div className="di-number-stepper-buttons">
+                            <button type="button" onClick={() => stepSize(item.key, inputVal, 1)} aria-label={`${item.label} 增加 1px`}>⌃</button>
+                            <button type="button" onClick={() => stepSize(item.key, inputVal, -1)} aria-label={`${item.label} 减少 1px`}>⌄</button>
+                          </div>
+                        </div>
                         <select
                           className="di-size-mode-select"
                           value={activeMode}
@@ -1896,44 +4183,55 @@ export function InspectorPanel({
                 </div>
               </div>
             </div>
+            )}
 
             {/* 阴影区 */}
             <div className="di-section">
               <div className="di-section-title">阴影</div>
-              <div className="di-shadow-grid">
+              <div className="di-shadow-panel">
                 {(() => {
                   const activeShadow = pendingShadow || shadowVal;
-                  const shadowDisplay = getShadowDisplay(activeShadow, shadowAuthoredVal, shadowTokens);
+                  const activeShadowAuthored = pendingShadow ? pendingShadow : shadowAuthoredVal;
                   const matchedOption = shadowOptions.find(option => canonicalizeShadowValue(option.value) === canonicalizeShadowValue(activeShadow)) ?? null;
                   const activeOption = matchedOption ?? shadowOptions[0];
+                  const isShadowCustom = shadowCustomMode || (!matchedOption && activeShadow !== 'none');
+                  const shadowDisplay = isShadowCustom
+                    ? { label: '自定义', sub: formatShadowDisplay(activeShadow), isHardcoded: true }
+                    : getShadowDisplay(activeShadow, activeShadowAuthored, shadowTokens);
+                  const shadowParts = parseShadowParts(activeShadow);
+                  const shadowControlLabel = isShadowCustom ? '自定义' : activeOption.label;
                   return (
                     <>
-                      <div className="di-shadow-card" style={{ position: 'relative' }}>
-                        <div className="di-shadow-card-title">Token</div>
+                      <div className="di-shadow-toolbar">
                         <button
-                          className="di-border-style-single"
+                          className={`di-shadow-token-trigger${isShadowCustom ? ' di-shadow-token-trigger--custom' : ''}`}
                           onClick={e => {
                             const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
                             setDropPos(calcDropPos(r));
                             setShowShadowDrop(v => !v);
                           }}
                         >
-                          <span className="di-border-style-label" style={activeOption.cssVar ? undefined : { color: '#9ca3af' }}>{activeOption.label}</span>
-                          <span className="di-border-style-name">{activeOption.cssVar || 'none'}</span>
+                          <span className="di-shadow-token-label" style={activeOption.cssVar || isShadowCustom ? undefined : { color: '#9ca3af' }}>{shadowControlLabel}</span>
                           <svg width="8" height="5" viewBox="0 0 8 5" fill="none" style={{marginLeft:'auto',flexShrink:0}}><path d="M1 1l3 3 3-3" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round"/></svg>
                         </button>
+                        <div className="di-shadow-preview-chip" style={{ boxShadow: activeShadow === 'none' ? 'none' : activeShadow }} />
+                        <div className="di-shadow-preview-copy">
+                          <span className={shadowDisplay.label === '无' || shadowDisplay.isHardcoded ? 'di-token-name--plain' : 'di-token-name'}>{shadowDisplay.label}</span>
+                          <span className="di-hex di-hex--wrap">{shadowDisplay.sub}</span>
+                        </div>
                         {showShadowDrop && (
                           <>
                             <div style={{position:'fixed',inset:0,zIndex:99997}} onClick={() => setShowShadowDrop(false)} />
                             <div className="di-border-style-drop di-shadow-drop" style={{position:'fixed',top:dropPos.top,left:dropPos.left,zIndex:99998}}>
                               {shadowOptions.map(option => {
-                                const isOn = canonicalizeShadowValue(option.value) === canonicalizeShadowValue(activeShadow);
+                                const isOn = !isShadowCustom && canonicalizeShadowValue(option.value) === canonicalizeShadowValue(activeShadow);
                                 return (
                                   <button
                                     key={option.cssVar || option.label}
                                     className={`di-border-style-drop-item${isOn ? ' di-border-style-drop-item--on' : ''}`}
                                     onClick={() => {
                                       setPendingShadow(option.value);
+                                      setShadowCustomMode(false);
                                       liveApply('box-shadow', option.value);
                                       setShowShadowDrop(false);
                                     }}
@@ -1947,20 +4245,19 @@ export function InspectorPanel({
                                 );
                               })}
                               <button
-                                className={`di-border-style-drop-item${matchedOption ? '' : ' di-border-style-drop-item--on'}`}
+                                className={`di-border-style-drop-item${isShadowCustom ? ' di-border-style-drop-item--on' : ''}`}
                                 onClick={() => {
-                                  const next = prompt('自定义阴影（如 0 12px 30px rgba(15,23,42,0.08)）', activeShadow === 'none' ? '' : activeShadow);
-                                  if (next === null) return;
-                                  const value = next.trim() || 'none';
+                                  const value = buildShadowValue(EMPTY_CUSTOM_SHADOW_PARTS);
                                   setPendingShadow(value);
+                                  setShadowCustomMode(true);
                                   liveApply('box-shadow', value);
                                   setShowShadowDrop(false);
                                 }}
                               >
-                                <span className="di-border-style-label">自定义</span>
+                                <span className="di-custom-option-label">自定义</span>
                                 <span className="di-shadow-drop-meta">
-                                  <span className="di-border-style-name">{shadowDisplay.label}</span>
-                                  <span className="di-shadow-drop-value">{formatShadowDisplay(activeShadow)}</span>
+                                  <span className="di-border-style-name">手动调整参数</span>
+                                  <span className="di-shadow-drop-value">X / Y / 模糊 / 扩散 / 颜色</span>
                                 </span>
                               </button>
                             </div>
@@ -1968,154 +4265,61 @@ export function InspectorPanel({
                         )}
                       </div>
 
-                      <div className="di-shadow-card">
-                        <div className="di-shadow-card-title">预览</div>
-                        <div className="di-shadow-preview-row">
-                          <div className="di-shadow-preview-chip" style={{ boxShadow: activeShadow === 'none' ? 'none' : activeShadow }} />
-                          <div className="di-shadow-preview-copy">
-                            <span className={shadowDisplay.isHardcoded ? 'di-token-name--plain' : 'di-token-name'}>{shadowDisplay.label}</span>
-                            <span className="di-hex di-hex--wrap">{shadowDisplay.sub}</span>
+                      {isShadowCustom && (
+                        <div className="di-shadow-custom-grid">
+                          {([
+                            { key: 'x', label: 'X', value: shadowParts.x },
+                            { key: 'y', label: 'Y', value: shadowParts.y },
+                            { key: 'blur', label: '模糊', value: shadowParts.blur },
+                            { key: 'spread', label: '扩散', value: shadowParts.spread },
+                          ] as const).map(item => (
+                            <div className="di-shadow-custom-row" key={item.key}>
+                              <span className="di-shadow-custom-label">{item.label}</span>
+                              <div className="di-number-stepper">
+                                <input
+                                  className="di-shadow-custom-input di-number-stepper-input"
+                                  value={item.value}
+                                  aria-label={`阴影${item.label}`}
+                                  onChange={event => setCustomShadowPart(item.key, event.currentTarget.value)}
+                                  onFocus={event => event.currentTarget.select()}
+                                  onClick={event => event.currentTarget.select()}
+                                  onMouseUp={event => event.preventDefault()}
+                                />
+                                <div className="di-number-stepper-buttons">
+                                  <button type="button" onClick={() => stepCustomShadowPart(item.key, 1)} aria-label={`阴影${item.label}增加 1px`}>⌃</button>
+                                  <button type="button" onClick={() => stepCustomShadowPart(item.key, -1)} aria-label={`阴影${item.label}减少 1px`}>⌄</button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          <div className="di-shadow-custom-row di-shadow-custom-row--color">
+                            <span className="di-shadow-custom-label">颜色</span>
+                            <button
+                              type="button"
+                              className="di-shadow-color-control"
+                              onClick={event => {
+                                const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
+                                setDropPos(calcDropPos(r));
+                                setShowShadowColorDrop(v => !v);
+                              }}
+                            >
+                              <span className="di-shadow-color-swatch" style={{ background: shadowParts.color }} />
+                              <span className="di-shadow-color-text">{formatColorDisplay(shadowParts.color)}</span>
+                              <svg width="8" height="5" viewBox="0 0 8 5" fill="none" style={{marginLeft:'auto',flexShrink:0}}><path d="M1 1l3 3 3-3" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                            </button>
+                            {showShadowColorDrop && (
+                              <ColorDropdown
+                                value={shadowParts.color}
+                                pos={dropPos}
+                                colorPalette={colorPalette}
+                                onChange={color => setCustomShadowPart('color', color)}
+                                onClose={() => setShowShadowColorDrop(false)}
+                              />
+                            )}
                           </div>
                         </div>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-
-            {/* 边框区 */}
-            <div className="di-section">
-              <div className="di-section-title">边框</div>
-              <div className="di-border-row">
-
-                {/* 边框颜色 */}
-                {(() => {
-                  const bcVal = pendingBorderColor || borderColorVal;
-                  const { label: bcLabel, sub: bcSub, isHardcoded: bcHard } = getDisplayLabel(bcVal || '', tokenMap, colorPalette, tokenLabels);
-                  const bcDark = (() => { const m = bcVal?.match(/^#([0-9a-f]{6})$/i); if (!m) return false; const r=parseInt(m[1].slice(0,2),16),g=parseInt(m[1].slice(2,4),16),b=parseInt(m[1].slice(4,6),16); return (r*299+g*587+b*114)/1000 < 128; })();
-                  return (
-                    <div className="di-border-card">
-                      <div className="di-border-card-title">颜色</div>
-                      <div className="di-border-color-body">
-                        <button
-                          className={`di-swatch-btn${bcDark ? ' di-swatch-btn--dark' : ''}${!bcVal ? ' di-swatch-btn--empty' : ''}`}
-                          style={{ background: bcVal || undefined }}
-                          onClick={e => { const r=(e.currentTarget as HTMLElement).getBoundingClientRect(); setDropPos(calcDropPos(r)); setExpandedBorderColor(v=>!v); }}
-                        >
-                          <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
-                            <path d="M1 1l4 4 4-4" stroke={!bcVal ? '#9ca3af' : bcDark ? '#fff' : '#374151'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </button>
-                        <div className="di-border-color-info">
-                          <span className={bcHard ? 'di-token-name--plain' : 'di-token-name'}>{bcVal ? bcLabel : '未设置'}</span>
-                          {bcSub && <span className="di-hex">{bcSub}</span>}
-                        </div>
-                      </div>
-                      {expandedBorderColor && (
-                        <ColorDropdown value={bcVal || ''} pos={dropPos} colorPalette={colorPalette}
-                          onChange={c => {
-                            setPendingBorderColor(c); liveApply('border-color', c);
-                            if ((pendingBorderWidth || borderWidthVal) === '0px') { liveApply('border-width', '1px'); liveApply('border-style', 'solid'); setPendingBorderWidth('1px'); setPendingBorderStyle('solid'); }
-                          }}
-                          onClose={() => setExpandedBorderColor(false)}
-                          onAddToken={v=>handleAddToken(v,'border-color')}
-                        />
                       )}
-                    </div>
-                  );
-                })()}
-
-                {/* 粗细：合并到颜色卡片下方（已在上面的卡片里），单独卡片 */}
-                <div className="di-border-card" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div className="di-border-card-title">粗细</div>
-                  {(() => {
-                    const cur = pendingBorderWidth || borderWidthVal || '0px';
-                    const idx = borderWidthSteps.indexOf(cur);
-                    return (
-                      <div className="di-spinner">
-                        <span className="di-spinner-val">{cur}</span>
-                        <div className="di-spinner-btns">
-                          <button className="di-spinner-up" disabled={idx <= 0}
-                            onClick={() => { const nv=borderWidthSteps[Math.max(0,idx-1)]; setPendingBorderWidth(nv); liveApply('border-width',nv); }}>
-                            <svg width="8" height="5" viewBox="0 0 8 5"><path d="M1 4l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/></svg>
-                          </button>
-                          <button className="di-spinner-dn" disabled={idx >= borderWidthSteps.length - 1}
-                            onClick={() => { const nv=borderWidthSteps[Math.min(borderWidthSteps.length-1,idx<0?1:idx+1)]; setPendingBorderWidth(nv); liveApply('border-width',nv); }}>
-                            <svg width="8" height="5" viewBox="0 0 8 5"><path d="M1 1l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/></svg>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* 样式：单值展示 + 下拉 */}
-                <div className="di-border-card" style={{ position: 'relative' }}>
-                  <div className="di-border-card-title">样式</div>
-                  {(() => {
-                    const cur = pendingBorderStyle || borderStyleVal;
-                    const curOpt = BORDER_STYLE_OPTIONS.find(o => o.value === cur) ?? BORDER_STYLE_OPTIONS[0];
-                    return (
-                      <>
-                        <button className="di-border-style-single"
-                          onClick={e => { const r=(e.currentTarget as HTMLElement).getBoundingClientRect(); setDropPos(calcDropPos(r)); setShowStyleDrop(v=>!v); }}>
-                          <span className="di-border-style-label" style={curOpt.value === 'none' ? { color: '#9ca3af' } : undefined}>{curOpt.label}</span>
-                          <span className="di-border-style-name">{curOpt.title}</span>
-                          <svg width="8" height="5" viewBox="0 0 8 5" fill="none" style={{marginLeft:'auto',flexShrink:0}}><path d="M1 1l3 3 3-3" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                        </button>
-                        {showStyleDrop && (
-                          <>
-                            <div style={{position:'fixed',inset:0,zIndex:99997}} onClick={() => setShowStyleDrop(false)} />
-                            <div className="di-border-style-drop" style={{position:'fixed',top:dropPos.top,left:dropPos.left,zIndex:99998}}>
-                              {BORDER_STYLE_OPTIONS.map(opt => (
-                                <button key={opt.value}
-                                  className={`di-border-style-drop-item${cur===opt.value?' di-border-style-drop-item--on':''}`}
-                                  onClick={() => { setPendingBorderStyle(opt.value); liveApply('border-style',opt.value); setShowStyleDrop(false); }}>
-                                  <span className="di-border-style-label" style={opt.value === 'none' ? { color: '#9ca3af' } : undefined}>{opt.label}</span>
-                                  <span className="di-border-style-name">{opt.title}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-
-              </div>
-            </div>
-
-            {/* 圆角区 */}
-            <div className="di-section">
-              <div className="di-section-title">圆角</div>
-              <div className="di-preset-row">
-                {radiusPresets.map(opt => {
-                  const current = pendingRadius || radiusVal;
-                  const isOn = matchPreset(radiusPresets, current)?.value === opt.value;
-                  return (
-                    <button
-                      key={opt.label}
-                      className={`di-preset${isOn ? ' di-preset--on' : ''}`}
-                      onClick={() => { setPendingRadius(opt.value); setCustomRadius(''); liveApply('border-radius', opt.value); }}
-                    >
-                      <span className="di-preset-label">{opt.label}</span>
-                      {opt.sub && <span className="di-preset-sub">{opt.sub}</span>}
-                    </button>
-                  );
-                })}
-                {(() => {
-                  const cur = pendingRadius || radiusVal;
-                  const isCustom = !!cur && cur !== '0px' && !matchPreset(radiusPresets, cur);
-                  return (
-                    <button
-                      className={`di-preset${isCustom ? ' di-preset--on' : ''}`}
-                      onClick={() => { const v = prompt('自定义圆角（如 12px）', cur || ''); if (v) { setPendingRadius(v); setCustomRadius(v); liveApply('border-radius', v); } }}
-                    >
-                      <span className="di-preset-label">自定义</span>
-                      {isCustom && <span className="di-preset-sub">{cur}</span>}
-                    </button>
+                    </>
                   );
                 })()}
               </div>
@@ -2129,63 +4333,87 @@ export function InspectorPanel({
                   title="内边距" variant="padding"
                   value={pendingPadding || paddingVal}
                   spaceSteps={spaceSteps}
+                  custom={spaceCustomModes.padding}
+                  onCustomChange={v => setSpaceCustomModes(prev => ({ ...prev, padding: v }))}
                   onChange={v => { setPendingPadding(v); liveApply('padding', v); }}
                 />
                 <SpaceCard
                   title="外边距" variant="margin"
                   value={pendingMargin || marginVal}
                   spaceSteps={spaceSteps}
+                  custom={spaceCustomModes.margin}
+                  onCustomChange={v => setSpaceCustomModes(prev => ({ ...prev, margin: v }))}
                   onChange={v => { setPendingMargin(v); liveApply('margin', v); }}
                 />
                 <SpaceCard
                   title="元素间距" variant="gap"
                   value={pendingGap || gapVal}
                   spaceSteps={spaceSteps}
+                  custom={spaceCustomModes.gap}
+                  onCustomChange={v => setSpaceCustomModes(prev => ({ ...prev, gap: v }))}
                   onChange={v => { setPendingGap(v); liveApply('gap', v); }}
                 />
               </div>
             </div>
 
             <div className="di-section">
-              <div className="di-section-title">本次修改内容</div>
+              <div className="di-section-title">本次修改内容 {localDraftChangeCount}</div>
               <div className="di-inbox-summary">
-                <div className="di-inbox-pill">已记录 {styleIntentSummary.pendingCount}</div>
-                {(() => {
-                  const currentChanges = getPendingChangeRecords();
-                  if (currentChanges.length === 0) return null;
-                  const el = selectedRef.current;
-                  const targetClasses = el ? getClasses(el) : [];
-                  const targetLabel = el
-                    ? targetClasses.length
-                      ? `${el.tagName.toLowerCase()}.${targetClasses.join('.')}`
-                      : el.tagName.toLowerCase()
-                    : '当前对象';
-                  return (
-                    <div className="di-inbox-list">
-                      <div className="di-inbox-card di-inbox-card--draft">
+                {localDraftEntries.length > 0 ? (
+                  <div className="di-inbox-list">
+                    {localDraftEntries.map((entry) => (
+                      <div className="di-inbox-card di-inbox-card--draft" key={entry.key}>
                         <div className="di-inbox-card-head">
-                          <div className="di-inbox-target">{targetLabel}</div>
+                          <div>
+                            <div className="di-inbox-target">{entry.targetLabel}</div>
+                            <div className="di-inbox-meta">{entry.scopeLabel} · {entry.selector}</div>
+                          </div>
+                          <button
+                            className="di-inbox-icon-btn"
+                            onClick={() => handleDeleteLocalDraft(entry.key)}
+                            title="删除这个对象的全部修改"
+                            aria-label="删除这个对象的全部修改"
+                          >
+                            <Trash2 size={14} strokeWidth={2.2} aria-hidden="true" />
+                          </button>
                         </div>
                         <ol className="di-inbox-change-list">
-                          {currentChanges.map((change, idx) => (
-                            <li className="di-inbox-change-item" key={`current-${change.prop}-${idx}`}>
+                          {entry.changes.map((change, idx) => (
+                            <li className="di-inbox-change-item" key={`${entry.key}-${change.prop}-${idx}`}>
                               <span className="di-inbox-change-text">
                                 {idx + 1}. {getChangeLabel(change.prop)}：{change.from} → {change.val}
                               </span>
+                              <button
+                                className="di-inbox-icon-btn di-inbox-icon-btn--mini"
+                                onClick={() => handleResetLocalDraftChange(entry.key, change.prop)}
+                                title="移除并重置这条修改"
+                                aria-label="移除并重置这条修改"
+                              >
+                                <Minus size={14} strokeWidth={2.4} aria-hidden="true" />
+                              </button>
                             </li>
                           ))}
                         </ol>
                       </div>
-                    </div>
-                  );
-                })()}
+                    ))}
+                  </div>
+                ) : styleIntentSummary.pendingEntries.length === 0 ? (
+                  <div className="di-empty">还没有记录的修改</div>
+                ) : null}
                 {styleIntentSummary.pendingEntries.length > 0 ? (
-                  <div className="di-inbox-list">
+                  <div className="di-inbox-list di-inbox-list--stored">
                     {styleIntentSummary.pendingEntries.map((entry) => (
                       <div className="di-inbox-card" key={entry.id}>
                         <div className="di-inbox-card-head">
                           <div className="di-inbox-target">{entry.targetLabel || entry.selector || '未命名对象'}</div>
-                          <button className="di-inbox-delete" onClick={() => handleDeleteStyleIntent(entry.id)}>删除对象</button>
+                          <button
+                            className="di-inbox-icon-btn"
+                            onClick={() => handleDeleteStyleIntent(entry.id)}
+                            title="删除这条已记录对象"
+                            aria-label="删除这条已记录对象"
+                          >
+                            <Trash2 size={14} strokeWidth={2.2} aria-hidden="true" />
+                          </button>
                         </div>
                         {entry.note ? <div className="di-inbox-note">{entry.note}</div> : null}
                         <ol className="di-inbox-change-list">
@@ -2195,10 +4423,12 @@ export function InspectorPanel({
                                 {idx + 1}. {getChangeLabel(change.prop)}：{change.from ? `${change.from} → ` : ''}{change.val}
                               </span>
                               <button
-                                className="di-inbox-delete di-inbox-delete--mini"
+                                className="di-inbox-icon-btn di-inbox-icon-btn--mini"
                                 onClick={() => handleDeleteStyleIntent(entry.id, change.selector, change.prop)}
+                                title="删除这条已记录属性"
+                                aria-label="删除这条已记录属性"
                               >
-                                删除
+                                <Minus size={14} strokeWidth={2.4} aria-hidden="true" />
                               </button>
                             </li>
                           ))}
@@ -2206,22 +4436,22 @@ export function InspectorPanel({
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <div className="di-empty">还没有记录的修改</div>
-                )}
+                ) : null}
               </div>
             </div>
+              </>
+            )}
 
           </div>
 
           {/* 底部操作 */}
           {(() => {
-            const hasPending = Object.keys(pendingColors).length > 0 ||
+            const hasPending = localDraftChangeCount > 0 || Object.keys(pendingColors).length > 0 ||
               !!pendingTextColor || !!pendingRadius || !!pendingShadow ||
               !!pendingBorderColor || !!pendingBorderWidth || !!pendingBorderStyle ||
               !!pendingFontSize || !!pendingFontWeight || !!pendingPadding ||
               !!pendingMargin || !!pendingGap || !!pendingTranslate ||
-              !!pendingWidth || !!pendingHeight || !!note;
+              !!pendingWidth || !!pendingHeight || !!note || hasComponentAttrPending;
             return (
           <div className="di-foot">
             <button className="di-btn-cancel" onClick={handleReset}>重置</button>

@@ -1,0 +1,20 @@
+{
+  "name": "@lijinmei-810/dev-inspector-demo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 8765 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 8765 --strictPort"
+  },
+  "dependencies": {
+    "@lijinmei-810/dev-inspector": "file:../dev-inspector",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.2",
+    "vite": "^8.0.12"
+  }
+}

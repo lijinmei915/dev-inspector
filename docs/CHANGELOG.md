@@ -15,6 +15,16 @@
 
 ---
 
-## 待记录
+## 2026-05-17
 
-当前项目还没有登记结构性变更。
+### 调整产品文档分层
+
+- 改动：产品文档改为主流 MRD / PRD / 交互文档 / 数据字典 / 业务规则分层，并新增 `docs/product/README.md` 作为入口索引。
+- 影响：`docs/PRODUCT_PLAN.md` 回到中长期规划职责；已经确认的现有产品规则不再主要沉淀在规划文档里。
+- 相关文件：`docs/product/README.md`、`docs/product/MRD.md`、`docs/product/PRD.md`、`docs/product/INTERACTION_SPEC.md`、`docs/product/DATA_DICTIONARY.md`、`docs/product/BUSINESS_RULES.md`、`docs/DOCUMENTATION.md`、`PROJECT.md`。
+
+### 新增 AI 文档读取顺序
+
+- 改动：在 `AGENTS.md` 和 `docs/DOCUMENTATION.md` 增加 AI 接手时的文档读取顺序。
+- 影响：后续 AI 先按行为规则、文档路由、项目状态、产品文档、设计规则、决策和交接顺序判断，降低跨文档串层。
+- 相关文件：`AGENTS.md`、`docs/DOCUMENTATION.md`、`HANDOFF.md`。

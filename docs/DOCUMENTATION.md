@@ -35,11 +35,30 @@
 | 这个项目怎么开始用 | `README.md` |
 | AI 应该怎么行动 | `AGENTS.md` |
 | 现在项目是什么状态 | `PROJECT.md` |
+| 产品文档入口和落档索引 | `docs/product/README.md` |
+| MRD、PRD、交互文档、数据字典、业务规则 | `docs/product/*` |
 | 下一个人或 AI 怎么接手 | `HANDOFF.md` |
 | 为什么做过某个架构决定 | `docs/DECISIONS.md` |
 | 这次结构性改动影响了哪里 | `docs/CHANGELOG.md` |
 | 犯过什么错，新增了什么约束 | `docs/LESSONS.md` |
 | 怎么测试和验收 | `docs/TESTING.md`、`tests/` |
+
+---
+
+## AI 文档读取顺序
+
+AI 接手项目或准备更新文档时，按这个顺序读取：
+
+1. `AGENTS.md`：确认 AI 行为规则、入口控制、禁止行为和文档更新规则。
+2. `docs/DOCUMENTATION.md`：确认文档分层、SSOT 和更新决策表。
+3. `PROJECT.md`：确认当前项目状态、模块边界、SSOT 索引和下一步重点。
+4. `docs/product/README.md`：产品文档入口；按问题进入 `MRD.md`、`PRD.md`、`INTERACTION_SPEC.md`、`DATA_DICTIONARY.md` 或 `BUSINESS_RULES.md`。
+5. `docs/design/component-index.md`：组件、primitive、Inspector 模块交互和相同元素规则。
+6. `docs/design/tokens.md`：token、预设、自定义、空值、阴影、间距等设计规则。
+7. `docs/DECISIONS.md`：只读“为什么这么定”，不从这里维护当前执行清单。
+8. `HANDOFF.md`：读取当前交接、风险、刚完成内容和下一步。
+
+如果只是在做当前任务，允许按任务相关性跳读；但发生文档更新、规则变更或跨文档冲突时，必须回到以上顺序判断。
 
 ---
 
@@ -143,6 +162,7 @@ docs/DECISIONS.md
 docs/LESSONS.md
 docs/TESTING.md
 docs/PRODUCT_PLAN.md
+docs/product/
 docs/CODE_STRUCTURE.md
 docs/DESIGN_STANDARDS.md
 ```
@@ -185,7 +205,7 @@ docs/DESIGN_STANDARDS.md
 
 - 让 AI 先判断“该不该往这里写”
 - 让人快速理解这份文档的边界
-- 降低 `PROJECT.md` / `HANDOFF.md` / `PRODUCT_PLAN.md` 串层概率
+- 降低 `PROJECT.md` / `docs/product/*` / `HANDOFF.md` / `PRODUCT_PLAN.md` 串层概率
 
 #### 2. 标题尽量稳定
 
@@ -512,6 +532,7 @@ adapters/
 README.md
 PROJECT.md
 docs/PRODUCT_PLAN.md
+docs/product/
 docs/CODE_STRUCTURE.md
 docs/DESIGN_STANDARDS.md
 docs/design/
@@ -712,7 +733,27 @@ AI 规则层 = 告诉 AI 怎么干活
 
 ---
 
-## 快速判断：该写 PROJECT、HANDOFF 还是 PRODUCT_PLAN
+### docs/product/
+
+产品文档目录，采用 MRD / PRD / 交互文档 / 数据字典 / 业务规则分层。
+
+边界：
+
+- `docs/product/README.md`：产品文档入口、索引和数据源原则
+- `docs/product/MRD.md`：市场、用户、场景、机会和产品价值判断
+- `docs/product/PRD.md`：当前产品需求、功能边界、模块范围和验收入口
+- `docs/product/INTERACTION_SPEC.md`：页面、组件、状态、反馈和异常分支
+- `docs/product/DATA_DICTIONARY.md`：业务对象、字段、枚举、状态和对象关系
+- `docs/product/BUSINESS_RULES.md`：编码、校验、去重、状态流转、导入导出规则
+
+数据源规则：
+
+- 业务事实必须来自 PRD、代码 schema、接口、导入模板、页面行为或用户明确确认
+- 不能把行业经验直接写成事实；只能标记为待确认假设
+
+---
+
+## 快速判断：该写 PROJECT、product docs、HANDOFF 还是 PRODUCT_PLAN
 
 看到一条信息时，先问它回答的是哪个问题：
 
@@ -766,11 +807,30 @@ v1 之后做什么
 - v2 做工具原生适配包
 - v3 做可发现 skill / package
 
+### 写到 docs/product/
+
+如果它回答的是：
+
+```txt
+当前产品规则是什么
+某个业务对象是什么
+销货号 / SKU / 编码怎么生成和校验
+某个模块现在有哪些功能边界
+```
+
+典型例子：
+
+- 产品、SKU、销货号字段定义
+- 销货号生成、去重、格式校验
+- 模块功能边界和当前流程
+- 某个规则的数据来源
+
 ### 一句话判断
 
 ```txt
 PROJECT.md       = 现在是什么
 HANDOFF.md       = 这轮做了什么，接下来怎么接
+docs/product/    = MRD / PRD / 交互 / 数据字典 / 业务规则
 docs/PRODUCT_PLAN.md = 以后怎么演进
 ```
 
@@ -974,6 +1034,7 @@ Claude Code 参考实现。
 | AI 路由规则改变 | `AGENTS.md`、相关 tests、`HANDOFF.md` |
 | 跨工具适配改变 | `adapters/`、`README.md` 或 `INSTALL.md`、`docs/CHANGELOG.md`、`HANDOFF.md` |
 | 项目阶段或下一步改变 | `PROJECT.md`、`HANDOFF.md` |
+| 当前产品规则、业务对象、编码规则或模块边界改变 | `docs/product/*`，必要时 `PROJECT.md` / `HANDOFF.md` |
 | 完成一次连续任务 | `HANDOFF.md` |
 | 架构决策改变 | `docs/DECISIONS.md`、必要时 `PROJECT.md` / `AGENTS.md` |
 | 犯错或测试暴露新问题 | `docs/LESSONS.md`、必要时 `AGENTS.md` 或 tests |
@@ -1014,6 +1075,7 @@ Claude Code 参考实现。
 README.md        = 给新用户怎么开始
 AGENTS.md        = AI 应该怎么做
 PROJECT.md       = 现在是什么
+docs/product/    = 当前产品文档和业务规则在哪里
 HANDOFF.md       = 接下来怎么接
 CHANGELOG.md     = 以前为什么变
 DECISIONS.md     = 为什么这么定

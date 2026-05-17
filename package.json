@@ -8,6 +8,8 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
+    "dev:demo": "npm run dev --workspace @lijinmei-810/dev-inspector-demo",
+    "build:demo": "npm run build --workspace @lijinmei-810/dev-inspector-demo",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

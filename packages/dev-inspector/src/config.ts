@@ -35,7 +35,7 @@ export type SpaceStep = {
   val: string;
 };
 
-export type FontSizeOption = {
+export type TypographyStyleOption = {
   key: string;
   label: string;
   value: string;
@@ -45,7 +45,29 @@ export type FontSizeOption = {
   usage: string;
 };
 
+export type FontSizeOption = {
+  label: string;
+  value: string;
+  token?: string;
+};
+
 export type FontWeightOption = { label: string; value: string };
+
+export type ContainerStyleOption = {
+  key: string;
+  label: string;
+  backgroundColor: string;
+  backgroundVar: string;
+  borderColor: string;
+  colorVar: string;
+  borderWidth: string;
+  borderStyle: string;
+  borderRadius: string;
+  radiusVar?: string;
+  usage: string;
+};
+
+export type BorderStyleOption = ContainerStyleOption;
 
 export type DevInspectorEndpoints = {
   applyCss: string;
@@ -62,7 +84,10 @@ export type DevInspectorTokenConfig = {
   radiusPresets: RadiusPreset[];
   spaceSteps: SpaceStep[];
   borderWidthSteps: string[];
-  fontSizeOptions: FontSizeOption[];
+  containerStyles?: ContainerStyleOption[];
+  borderStyles?: BorderStyleOption[];
+  typographyStyles?: TypographyStyleOption[];
+  fontSizeOptions?: FontSizeOption[];
   fontWeightOptions: FontWeightOption[];
   shadowTokens: ShadowToken[];
   typographyTokens: TypographyToken[];
@@ -74,7 +99,111 @@ export type DevInspectorConfig = {
   tokens: DevInspectorTokenConfig;
 };
 
+export type DevInspectorConfigOverrides = Omit<Partial<DevInspectorConfig>, 'endpoints' | 'tokens'> & {
+  endpoints?: Partial<DevInspectorEndpoints>;
+  tokens?: Partial<DevInspectorTokenConfig>;
+};
+
 // ─── 内置最小默认值（项目侧可通过 Provider 覆盖） ───────────────
+
+const FALLBACK_TYPOGRAPHY_STYLES: TypographyStyleOption[] = [
+  {
+    key: 'card-title',
+    label: '卡片标题',
+    value: '14px',
+    fontWeight: '700',
+    color: '#111827',
+    colorVar: '--color-text-strong',
+    usage: '卡片、模块、表单区块标题',
+  },
+  {
+    key: 'card-body',
+    label: '卡片正文',
+    value: '13px',
+    fontWeight: '400',
+    color: '#374151',
+    colorVar: '--color-text-default',
+    usage: '卡片描述、正文说明',
+  },
+  {
+    key: 'helper-text',
+    label: '辅助文字',
+    value: '12px',
+    fontWeight: '400',
+    color: '#64748b',
+    colorVar: '--color-text-muted',
+    usage: '提示、说明、次要信息',
+  },
+];
+
+const FALLBACK_FONT_SIZE_OPTIONS: FontSizeOption[] = [
+  { label: 'XS', value: '11px', token: '--font-size-xs' },
+  { label: 'S', value: '12px', token: '--font-size-s' },
+  { label: 'M', value: '14px', token: '--font-size-m' },
+  { label: 'L', value: '16px', token: '--font-size-l' },
+  { label: 'XL', value: '20px', token: '--font-size-xl' },
+  { label: 'XXL', value: '24px', token: '--font-size-xxl' },
+];
+
+const FALLBACK_CONTAINER_STYLES: ContainerStyleOption[] = [
+  {
+    key: 'plain-surface',
+    label: '纯色容器',
+    backgroundColor: '#ffffff',
+    backgroundVar: '--color-surface',
+    borderColor: 'transparent',
+    colorVar: 'transparent',
+    borderWidth: '0px',
+    borderStyle: 'none',
+    borderRadius: '0px',
+    usage: '无描边普通容器',
+  },
+  {
+    key: 'surface-card',
+    label: '容器边框',
+    backgroundColor: '#ffffff',
+    backgroundVar: '--color-surface',
+    borderColor: '#e5e7eb',
+    colorVar: '--color-border-default',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderRadius: '8px',
+    usage: '普通卡片、表单容器',
+  },
+  {
+    key: 'focus-card',
+    label: '强调边框',
+    backgroundColor: '#ffffff',
+    backgroundVar: '--color-surface',
+    borderColor: '#7c3aed',
+    colorVar: '--color-brand-primary',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderRadius: '8px',
+    usage: '选中态、强调容器',
+  },
+];
+
+const FALLBACK_SHADOW_TOKENS: ShadowToken[] = [
+  {
+    cssVar: '--shadow-soft',
+    value: '0 14px 42px rgba(15,23,42,0.08)',
+    label: '柔和',
+    usage: '普通卡片、表单容器',
+  },
+  {
+    cssVar: '--shadow-floating',
+    value: '0 22px 56px rgba(15,23,42,0.14)',
+    label: '浮起',
+    usage: '浮层、Popover、悬浮卡片',
+  },
+  {
+    cssVar: '--shadow-emphasis',
+    value: '0 24px 72px rgba(109,93,252,0.18)',
+    label: '强调',
+    usage: '品牌强调、选中态',
+  },
+];
 
 const FALLBACK_TOKENS: DevInspectorTokenConfig = {
   colorPalette: [],
@@ -96,14 +225,16 @@ const FALLBACK_TOKENS: DevInspectorTokenConfig = {
     { label: 'XXL', size: '24px', val: '24px' },
   ],
   borderWidthSteps: ['0px', '1px', '2px', '4px'],
-  fontSizeOptions: [],
+  containerStyles: FALLBACK_CONTAINER_STYLES,
+  typographyStyles: FALLBACK_TYPOGRAPHY_STYLES,
+  fontSizeOptions: FALLBACK_FONT_SIZE_OPTIONS,
   fontWeightOptions: [
     { label: '常', value: '400' },
     { label: '中', value: '500' },
     { label: '粗', value: '600' },
     { label: '黑', value: '700' },
   ],
-  shadowTokens: [],
+  shadowTokens: FALLBACK_SHADOW_TOKENS,
   typographyTokens: [],
 };
 
@@ -121,10 +252,7 @@ export const defaultDevInspectorConfig: DevInspectorConfig = {
 };
 
 export function mergeDevInspectorConfig(
-  overrides?: Partial<DevInspectorConfig> & {
-    endpoints?: Partial<DevInspectorEndpoints>;
-    tokens?: Partial<DevInspectorTokenConfig>;
-  },
+  overrides?: DevInspectorConfigOverrides,
 ): DevInspectorConfig {
   return {
     ...defaultDevInspectorConfig,

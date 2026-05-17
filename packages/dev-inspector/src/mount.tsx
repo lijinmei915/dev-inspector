@@ -2,10 +2,10 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import DevInspector from './DevInspector';
 import { DevInspectorProvider } from './DevInspectorProvider';
-import { mergeDevInspectorConfig, type DevInspectorConfig } from './config';
+import { mergeDevInspectorConfig, type DevInspectorConfigOverrides } from './config';
 
 export function mountDevInspector(
-  config?: Partial<DevInspectorConfig> & { endpoints?: Partial<DevInspectorConfig['endpoints']> },
+  config?: DevInspectorConfigOverrides,
 ) {
   const resolved = mergeDevInspectorConfig(config);
   const existingRoot = document.getElementById(resolved.rootId);
