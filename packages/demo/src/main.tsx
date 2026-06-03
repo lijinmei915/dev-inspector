@@ -157,7 +157,7 @@ function DemoApp() {
         <div>
           <p className="demo-eyebrow">Local demo</p>
           <h1>Dev Inspector</h1>
-          <p className="demo-subtitle">点击右下角「编辑」，再点任意元素查看样式。</p>
+          <p className="demo-subtitle">点击右下角「编辑」，或用 Mac Option+I / Windows Alt+I，再点任意元素查看样式。</p>
         </div>
         <button className="primary-btn">主按钮</button>
       </section>
@@ -167,22 +167,89 @@ function DemoApp() {
         <button className="ghost-button">次按钮</button>
       </section>
 
-      <section className="task-grid">
-        <article className="task-card is-selected">
-          <span className="status-badge status-badge--progress">进行中</span>
-          <h2 className="task-title">任务标题 1</h2>
-          <p className="card-desc">这是一段示例描述文字，用于展示卡片布局效果。</p>
-        </article>
-        <article className="task-card">
-          <span className="status-badge">待处理</span>
-          <h2 className="task-title">任务标题 2</h2>
-          <p className="card-desc">这是一段示例描述文字，用于展示卡片布局效果。</p>
-        </article>
-        <article className="task-card">
-          <span className="status-badge status-badge--done">已完成</span>
-          <h2 className="task-title">任务标题 3</h2>
-          <p className="card-desc">这是一段示例描述文字，用于展示卡片布局效果。</p>
-        </article>
+      <section className="demo-block demo-block--components">
+        <div className="demo-block-head">
+          <p className="demo-block-kicker">组件区块</p>
+          <h2>已封装组件示例</h2>
+          <p>这里用于测试已识别组件、真实变体、子组件和外部布局。</p>
+        </div>
+        <div className="task-grid">
+          <article className="task-card is-selected">
+            <span className="status-badge status-badge--progress">进行中</span>
+            <h2 className="task-title">任务标题 1</h2>
+            <p className="card-desc">这是一段示例描述文字，用于展示卡片布局效果。</p>
+          </article>
+          <article className="task-card">
+            <span className="status-badge">待处理</span>
+            <h2 className="task-title">任务标题 2</h2>
+            <p className="card-desc">这是一段示例描述文字，用于展示卡片布局效果。</p>
+          </article>
+          <article className="task-card">
+            <span className="status-badge status-badge--done">已完成</span>
+            <h2 className="task-title">任务标题 3</h2>
+            <p className="card-desc">这是一段示例描述文字，用于展示卡片布局效果。</p>
+          </article>
+        </div>
+      </section>
+
+      <section className="demo-block demo-block--plain plain-test-zone">
+        <div className="plain-zone-head">
+          <p className="plain-kicker">普通元素测试区</p>
+          <h2 className="plain-section-title">非组件 DOM 示例</h2>
+          <p className="plain-section-desc">这里都是普通 HTML 元素，用来测试创建组件时的容器、用途、名称和使用场景推断。</p>
+        </div>
+
+        <div className="plain-layout">
+          <article className="plain-card">
+            <span className="plain-tag">页面提示</span>
+            <h3 className="plain-card-title">新品铺货节奏</h3>
+            <p className="plain-card-copy">建议先补齐主推款，再根据门店库存补充安全货量。</p>
+            <a className="plain-link" href="#plain-detail">查看明细</a>
+          </article>
+
+          <aside className="plain-menu">
+            <p className="plain-menu-label">菜单</p>
+            <ul>
+              <li className="plain-menu-item is-active">策略生成</li>
+              <li className="plain-menu-item">培训提纲</li>
+              <li className="plain-menu-item">异常诊断</li>
+            </ul>
+          </aside>
+        </div>
+
+        <div className="plain-list">
+          <div className="plain-list-row">
+            <span className="plain-index">01</span>
+            <div>
+              <strong className="plain-row-title">快速定位物料</strong>
+              <p className="plain-row-desc">把场景归类后，自动找到所需作战物料。</p>
+            </div>
+            <span className="plain-row-status">可用</span>
+          </div>
+          <div className="plain-list-row">
+            <span className="plain-index">02</span>
+            <div>
+              <strong className="plain-row-title">AI 智能问答</strong>
+              <p className="plain-row-desc">即时回答经营问题，并沉淀到知识库。</p>
+            </div>
+            <span className="plain-row-status plain-row-status--muted">待接入</span>
+          </div>
+        </div>
+
+        <div className="plain-form-panel">
+          <label className="plain-field">
+            <span>门店名称</span>
+            <input placeholder="例如：西湖旗舰店" />
+          </label>
+          <label className="plain-field">
+            <span>补充说明</span>
+            <textarea placeholder="填写需要 AI 特别关注的信息" />
+          </label>
+          <div className="plain-inline-actions">
+            <button type="button">保存草稿</button>
+            <button type="button">生成建议</button>
+          </div>
+        </div>
       </section>
 
       <form className="demo-form">

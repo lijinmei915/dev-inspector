@@ -1,0 +1,162 @@
+<svg width="2800" height="1900" viewBox="0 0 2800 1900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .bg { fill: #f8fafc; }
+      .panel { fill: #fff; stroke: #e2e8f0; stroke-width: 2; filter: url(#shadow); }
+      .card { fill: #fff; stroke: #e2e8f0; stroke-width: 2; }
+      .soft { fill: #f8fafc; }
+      .soft2 { fill: #f5f3ff; }
+      .field { fill: #fff; stroke: #e2e8f0; stroke-width: 2; }
+      .fieldOn { fill: #f5f3ff; stroke: #c4b5fd; stroke-width: 2.4; }
+      .dark { fill: #0f172a; }
+      .ink { fill: #0f172a; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .muted { fill: #64748b; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .dim { fill: #94a3b8; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .purple { fill: #7c3aed; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .title { font-size: 44px; font-weight: 850; letter-spacing: 0; }
+      .sub { font-size: 24px; font-weight: 600; letter-spacing: 0; }
+      .h { font-size: 30px; font-weight: 850; letter-spacing: 0; }
+      .body { font-size: 24px; font-weight: 650; letter-spacing: 0; }
+      .small { font-size: 20px; font-weight: 650; letter-spacing: 0; }
+      .tiny { font-size: 18px; font-weight: 650; letter-spacing: 0; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="2800" height="1900"/>
+  <text x="88" y="86" class="ink title">文字区参考组件区：8 个结构方案</text>
+  <text x="88" y="128" class="muted sub">目标：像组件卡片一样，用“字段名 + 控件”组织文字内容和文字样式，同时保留 token / 自定义 / 实时预览。</text>
+
+  <!-- A -->
+  <g transform="translate(88 190)">
+    <rect class="panel" width="1260" height="350" rx="34"/>
+    <text x="36" y="58" class="purple h">A. 组件式字段卡</text>
+    <text x="36" y="92" class="muted small">完全对齐组件：左侧字段名，右侧输入和样式行。</text>
+    <rect class="card" x="36" y="118" width="1188" height="190" rx="22"/>
+    <text x="72" y="168" class="muted body">内容</text>
+    <rect class="field" x="168" y="134" width="1008" height="56" rx="14"/>
+    <text x="196" y="170" class="ink body">Dev Inspector</text>
+    <text x="72" y="248" class="muted body">样式</text>
+    <rect class="fieldOn" x="168" y="214" width="220" height="56" rx="14"/>
+    <text x="198" y="250" class="purple body">自定义样式</text>
+    <rect class="field" x="408" y="214" width="152" height="56" rx="14"/><text x="446" y="250" class="ink body">48px</text>
+    <rect class="field" x="580" y="214" width="152" height="56" rx="14"/><text x="614" y="250" class="purple body">中</text><text x="660" y="250" class="ink body">800</text>
+    <rect class="field" x="752" y="214" width="260" height="56" rx="14"/><rect class="dark" x="774" y="228" width="30" height="30" rx="8"/><text x="822" y="250" class="purple body">text·strong</text>
+    <text x="1034" y="250" class="dim small mono">#0f172a</text>
+  </g>
+
+  <!-- B -->
+  <g transform="translate(1452 190)">
+    <rect class="panel" width="1260" height="350" rx="34"/>
+    <text x="36" y="58" class="purple h">B. 文本属性卡</text>
+    <text x="36" y="92" class="muted small">把文字样式合成一个属性卡，点击展开内部单项。</text>
+    <rect class="card" x="36" y="118" width="1188" height="190" rx="22"/>
+    <text x="72" y="168" class="muted body">内容</text>
+    <rect class="field" x="168" y="134" width="1008" height="56" rx="14"/><text x="196" y="170" class="ink body">Dev Inspector</text>
+    <text x="72" y="248" class="muted body">样式</text>
+    <rect class="fieldOn" x="168" y="214" width="1008" height="56" rx="14"/>
+    <text x="196" y="250" class="purple body">自定义样式</text>
+    <text x="400" y="250" class="ink body">48px / 800</text>
+    <rect class="dark" x="560" y="228" width="30" height="30" rx="8"/>
+    <text x="610" y="250" class="muted small mono">text·strong · #0f172a</text>
+    <text x="1110" y="250" class="dim body">⌄</text>
+  </g>
+
+  <!-- C -->
+  <g transform="translate(88 590)">
+    <rect class="panel" width="1260" height="350" rx="34"/>
+    <text x="36" y="58" class="purple h">C. 语义优先</text>
+    <text x="36" y="92" class="muted small">优先选语义样式；自定义参数作为右侧只读摘要。</text>
+    <rect class="card" x="36" y="118" width="1188" height="190" rx="22"/>
+    <text x="72" y="168" class="muted body">内容</text>
+    <rect class="field" x="168" y="134" width="1008" height="56" rx="14"/><text x="196" y="170" class="ink body">Dev Inspector</text>
+    <text x="72" y="248" class="muted body">文字样式</text>
+    <rect class="fieldOn" x="204" y="214" width="260" height="56" rx="14"/><text x="246" y="250" class="purple body">页面标题</text>
+    <text x="500" y="238" class="ink body">48px / 800</text>
+    <text x="500" y="266" class="muted small mono">--color-text-strong</text>
+    <rect class="field" x="948" y="214" width="228" height="56" rx="14"/><text x="1000" y="250" class="ink body">自定义</text>
+  </g>
+
+  <!-- D -->
+  <g transform="translate(1452 590)">
+    <rect class="panel" width="1260" height="350" rx="34"/>
+    <text x="36" y="58" class="purple h">D. 双行紧凑</text>
+    <text x="36" y="92" class="muted small">第一行内容，第二行样式；没有外层卡片，密度最高。</text>
+    <rect class="soft" x="36" y="118" width="1188" height="80" rx="20"/>
+    <text x="70" y="168" class="ink body">文字</text>
+    <rect class="field" x="168" y="132" width="1008" height="52" rx="14"/><text x="196" y="166" class="ink body">Dev Inspector</text>
+    <rect class="soft" x="36" y="218" width="1188" height="80" rx="20"/>
+    <text x="70" y="268" class="ink body">样式</text>
+    <rect class="fieldOn" x="168" y="232" width="220" height="52" rx="14"/><text x="198" y="266" class="purple body">自定义样式</text>
+    <rect class="field" x="406" y="232" width="136" height="52" rx="14"/><text x="438" y="266" class="ink body">48px</text>
+    <rect class="field" x="560" y="232" width="136" height="52" rx="14"/><text x="592" y="266" class="ink body">800</text>
+    <rect class="field" x="714" y="232" width="300" height="52" rx="14"/><rect class="dark" x="736" y="244" width="28" height="28" rx="8"/><text x="782" y="266" class="purple body">text·strong</text>
+  </g>
+
+  <!-- E -->
+  <g transform="translate(88 990)">
+    <rect class="panel" width="1260" height="350" rx="34"/>
+    <text x="36" y="58" class="purple h">E. 表单行 + 预览</text>
+    <text x="36" y="92" class="muted small">右侧保留一块真实预览，适合调标题、按钮文字。</text>
+    <rect class="card" x="36" y="118" width="1188" height="190" rx="22"/>
+    <text x="72" y="168" class="muted body">内容</text>
+    <rect class="field" x="168" y="134" width="620" height="56" rx="14"/><text x="196" y="170" class="ink body">Dev Inspector</text>
+    <rect class="soft2" x="824" y="134" width="300" height="136" rx="18"/>
+    <text x="858" y="190" class="ink h">Dev Inspector</text>
+    <text x="858" y="230" class="muted small">48px / 800</text>
+    <text x="72" y="248" class="muted body">样式</text>
+    <rect class="fieldOn" x="168" y="214" width="190" height="56" rx="14"/><text x="208" y="250" class="purple body">自定义</text>
+    <rect class="field" x="378" y="214" width="130" height="56" rx="14"/><text x="408" y="250" class="ink body">48px</text>
+    <rect class="field" x="528" y="214" width="130" height="56" rx="14"/><text x="558" y="250" class="ink body">800</text>
+  </g>
+
+  <!-- F -->
+  <g transform="translate(1452 990)">
+    <rect class="panel" width="1260" height="350" rx="34"/>
+    <text x="36" y="58" class="purple h">F. 推荐：组件式字段组</text>
+    <text x="36" y="92" class="muted small">最像组件区：字段清楚，样式控件仍保持一行，改动可控。</text>
+    <rect class="card" x="36" y="118" width="1188" height="190" rx="22"/>
+    <text x="72" y="168" class="muted body">内容</text>
+    <rect class="field" x="168" y="134" width="1008" height="56" rx="14"/><text x="196" y="170" class="ink body">Dev Inspector</text>
+    <text x="72" y="248" class="muted body">文字样式</text>
+    <rect class="fieldOn" x="204" y="214" width="230" height="56" rx="14"/><text x="236" y="250" class="purple body">自定义样式</text>
+    <rect class="field" x="452" y="214" width="140" height="56" rx="14"/><text x="486" y="250" class="ink body">48px</text>
+    <rect class="field" x="610" y="214" width="150" height="56" rx="14"/><text x="644" y="250" class="purple body">中</text><text x="690" y="250" class="ink body">800</text>
+    <rect class="field" x="778" y="214" width="398" height="56" rx="14"/><rect class="dark" x="800" y="228" width="30" height="30" rx="8"/><text x="848" y="250" class="purple body">text·strong</text><text x="1032" y="250" class="dim small mono">#0f172a</text>
+  </g>
+
+  <!-- G -->
+  <g transform="translate(88 1390)">
+    <rect class="panel" width="1260" height="350" rx="34"/>
+    <text x="36" y="58" class="purple h">G. 内容 / 样式 Tab</text>
+    <text x="36" y="92" class="muted small">空间更省，但多一次切换，适合未来字段很多时。</text>
+    <rect class="card" x="36" y="118" width="1188" height="190" rx="22"/>
+    <rect class="soft" x="72" y="142" width="380" height="58" rx="18"/>
+    <rect class="fieldOn" x="78" y="148" width="182" height="46" rx="14"/><text x="126" y="178" class="purple body">内容</text>
+    <text x="316" y="178" class="muted body">样式</text>
+    <rect class="field" x="72" y="224" width="1052" height="56" rx="14"/><text x="100" y="260" class="ink body">Dev Inspector</text>
+    <text x="728" y="178" class="muted small">样式页：自定义 / 48px / 800 / text·strong</text>
+  </g>
+
+  <!-- H -->
+  <g transform="translate(1452 1390)">
+    <rect class="panel" width="1260" height="350" rx="34"/>
+    <text x="36" y="58" class="purple h">H. 分组标题 + 内联参数</text>
+    <text x="36" y="92" class="muted small">减少字段行，把“内容”和“样式”做成两个浅底块。</text>
+    <rect class="soft" x="36" y="118" width="1188" height="82" rx="20"/>
+    <text x="70" y="168" class="ink body">内容</text>
+    <rect class="field" x="168" y="132" width="1008" height="52" rx="14"/><text x="196" y="166" class="ink body">Dev Inspector</text>
+    <rect class="soft" x="36" y="218" width="1188" height="82" rx="20"/>
+    <text x="70" y="268" class="ink body">文字样式</text>
+    <text x="204" y="268" class="purple body">自定义样式</text>
+    <text x="394" y="268" class="ink body">48px / 800</text>
+    <rect class="dark" x="566" y="246" width="30" height="30" rx="8"/>
+    <text x="614" y="268" class="muted small mono">text·strong #0f172a</text>
+    <rect class="field" x="1034" y="234" width="92" height="48" rx="24"/><text x="1068" y="266" class="purple body">调</text>
+  </g>
+
+  <text x="88" y="1838" class="muted sub">建议优先看 F：它最接近组件区的“字段 + 控件”结构，同时不牺牲当前文字样式的一行调参效率。</text>
+</svg>

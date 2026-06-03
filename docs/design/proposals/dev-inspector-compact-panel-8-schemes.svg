@@ -1,0 +1,199 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2600" height="3200" viewBox="0 0 2600 3200">
+  <defs>
+    <style>
+      .bg { fill: #f6f8fb; }
+      .card { fill: #fff; stroke: #dfe5ee; stroke-width: 2; }
+      .panel { fill: #fff; stroke: #e1e7f0; stroke-width: 2; }
+      .soft { fill: #f7f9fc; }
+      .soft2 { fill: #f2f4f8; }
+      .line { stroke: #e6ebf2; stroke-width: 2; }
+      .ink { fill: #0f172a; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .muted { fill: #64748b; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .dim { fill: #94a3b8; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .purple { fill: #7c3aed; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .chip { fill: #f4efff; stroke: #c4b5fd; stroke-width: 2; }
+      .ctrl { fill: #fff; stroke: #dfe5ee; stroke-width: 2; }
+      .ctrlSoft { fill: #f8fafc; stroke: #dfe5ee; stroke-width: 2; }
+      .primary { fill: #7c3aed; }
+      .green { fill: #dcfce7; }
+      .blue { fill: #dbeafe; }
+      .orange { fill: #ffedd5; }
+      .title { font-size: 34px; font-weight: 850; }
+      .subtitle { font-size: 20px; font-weight: 560; }
+      .h { font-size: 24px; font-weight: 800; }
+      .body { font-size: 20px; font-weight: 650; }
+      .small { font-size: 16px; font-weight: 650; }
+      .mini { font-size: 14px; font-weight: 650; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="2600" height="3200"/>
+  <text x="80" y="78" class="ink title">Dev Inspector 紧凑面板：8 个重构方向</text>
+  <text x="80" y="116" class="muted subtitle">目标：少块状卡片、少重复空值、更多摘要式入口；只在点击 token / + / 展开时露出参数。</text>
+
+  <!-- A -->
+  <g transform="translate(80 160)">
+    <rect class="card" width="1180" height="680" rx="28"/>
+    <text x="34" y="52" class="purple h">A. 一行属性栏</text>
+    <text x="34" y="86" class="muted small">最像现有结构，但把文字 / 布局 / 空态都压成单行。</text>
+    <rect class="panel" x="34" y="118" width="1112" height="520" rx="24"/>
+    <text x="64" y="166" class="ink h">文字</text>
+    <rect class="ctrl" x="64" y="192" width="1010" height="64" rx="16"/>
+    <text x="88" y="233" class="ink body">Dev Inspector</text>
+    <rect class="ctrl" x="64" y="278" width="230" height="52" rx="14"/>
+    <text x="86" y="312" class="purple body">任务标题</text>
+    <text x="312" y="312" class="ink body">17px / 700</text>
+    <text x="428" y="312" class="muted body">--color-text-strong</text>
+    <line class="line" x1="34" y1="356" x2="1146" y2="356"/>
+    <text x="64" y="402" class="ink h">布局</text>
+    <rect class="soft" x="146" y="374" width="928" height="60" rx="14"/>
+    <text x="170" y="413" class="muted body">X 0</text><text x="280" y="413" class="muted body">Y 0</text>
+    <text x="406" y="413" class="ink body">W 605.9</text><text x="560" y="413" class="ink body">Fill</text>
+    <text x="690" y="413" class="ink body">H 50.4</text><text x="830" y="413" class="ink body">Hug</text>
+    <line class="line" x1="34" y1="462" x2="1146" y2="462"/>
+    <text x="64" y="508" class="ink h">阴影</text>
+    <rect class="ctrlSoft" x="146" y="480" width="76" height="52" rx="14"/><text x="177" y="515" class="purple h">+</text>
+    <text x="250" y="515" class="dim body">无阴影，点击添加</text>
+    <text x="64" y="582" class="ink h">间距</text>
+    <rect class="ctrlSoft" x="146" y="554" width="76" height="52" rx="14"/><text x="177" y="589" class="purple h">+</text>
+    <text x="250" y="589" class="dim body">无间距，点击添加</text>
+  </g>
+
+  <!-- B -->
+  <g transform="translate(1340 160)">
+    <rect class="card" width="1180" height="680" rx="28"/>
+    <text x="34" y="52" class="purple h">B. 属性表格</text>
+    <text x="34" y="86" class="muted small">把所有元素级属性变成一张表，适合快速扫读和批量编辑。</text>
+    <rect class="panel" x="34" y="118" width="1112" height="520" rx="24"/>
+    <text x="64" y="166" class="ink h">当前元素</text>
+    <rect class="soft" x="64" y="188" width="1010" height="64" rx="16"/>
+    <text x="90" y="229" class="ink body">h1</text>
+    <text x="156" y="229" class="muted body mono">Dev Inspector</text>
+    <g transform="translate(64 280)">
+      <text x="0" y="0" class="dim small">字段</text><text x="180" y="0" class="dim small">当前值</text><text x="540" y="0" class="dim small">操作</text>
+      <line class="line" x1="0" y1="22" x2="1010" y2="22"/>
+      <text x="0" y="66" class="ink body">文字</text><text x="180" y="66" class="purple body">任务标题 17/700</text><rect class="ctrl" x="540" y="34" width="150" height="48" rx="12"/><text x="585" y="65" class="ink small">切换</text>
+      <line class="line" x1="0" y1="100" x2="1010" y2="100"/>
+      <text x="0" y="144" class="ink body">布局</text><text x="180" y="144" class="muted body">X0 Y0 W606 Fill H50 Hug</text><rect class="ctrl" x="540" y="112" width="150" height="48" rx="12"/><text x="585" y="143" class="ink small">编辑</text>
+      <line class="line" x1="0" y1="178" x2="1010" y2="178"/>
+      <text x="0" y="222" class="ink body">阴影</text><text x="180" y="222" class="dim body">无</text><rect class="ctrl" x="540" y="190" width="150" height="48" rx="12"/><text x="596" y="221" class="purple h">+</text>
+      <line class="line" x1="0" y1="256" x2="1010" y2="256"/>
+      <text x="0" y="300" class="ink body">间距</text><text x="180" y="300" class="dim body">无</text><rect class="ctrl" x="540" y="268" width="150" height="48" rx="12"/><text x="596" y="299" class="purple h">+</text>
+    </g>
+  </g>
+
+  <!-- C -->
+  <g transform="translate(80 900)">
+    <rect class="card" width="1180" height="680" rx="28"/>
+    <text x="34" y="52" class="purple h">C. Token Strip</text>
+    <text x="34" y="86" class="muted small">第一屏只展示 token 摘要，点某个 chip 才展开参数。</text>
+    <rect class="panel" x="34" y="118" width="1112" height="520" rx="24"/>
+    <rect class="ctrl" x="64" y="150" width="1010" height="62" rx="16"/>
+    <text x="88" y="190" class="ink body">Dev Inspector</text>
+    <g transform="translate(64 238)">
+      <rect class="chip" width="244" height="60" rx="18"/><text x="24" y="38" class="purple body">文字 · 任务标题</text>
+      <rect class="ctrl" x="264" width="210" height="60" rx="18"/><text x="288" y="38" class="ink body">布局 · 6 项</text>
+      <rect class="ctrlSoft" x="494" width="170" height="60" rx="18"/><text x="526" y="38" class="dim body">阴影 +</text>
+      <rect class="ctrlSoft" x="684" width="170" height="60" rx="18"/><text x="716" y="38" class="dim body">间距 +</text>
+    </g>
+    <rect class="soft" x="64" y="330" width="1010" height="240" rx="20"/>
+    <text x="96" y="380" class="ink h">文字详情</text>
+    <text x="96" y="430" class="purple body">任务标题</text>
+    <text x="280" y="430" class="ink body">17px / 700</text>
+    <text x="450" y="430" class="muted body">--color-text-strong</text>
+    <rect class="ctrl" x="96" y="468" width="180" height="54" rx="14"/><text x="132" y="503" class="ink body">自定义</text>
+    <text x="310" y="503" class="dim body">只展开当前选中的属性组</text>
+  </g>
+
+  <!-- D -->
+  <g transform="translate(1340 900)">
+    <rect class="card" width="1180" height="680" rx="28"/>
+    <text x="34" y="52" class="purple h">D. 左标签右参数</text>
+    <text x="34" y="86" class="muted small">左侧固定字段名，右侧一行放全部值，减少卡片感。</text>
+    <rect class="panel" x="34" y="118" width="1112" height="520" rx="24"/>
+    <g transform="translate(64 154)">
+      <text x="0" y="40" class="ink h">文字</text>
+      <rect class="ctrl" x="120" y="0" width="890" height="64" rx="16"/><text x="148" y="41" class="ink body">Dev Inspector</text>
+      <rect class="chip" x="120" y="88" width="220" height="54" rx="14"/><text x="146" y="123" class="purple body">任务标题</text>
+      <text x="370" y="123" class="ink body">17px / 700</text><text x="520" y="123" class="muted body">text-strong</text>
+      <line class="line" x1="0" y1="176" x2="1010" y2="176"/>
+      <text x="0" y="232" class="ink h">布局</text>
+      <rect class="soft" x="120" y="196" width="890" height="68" rx="16"/>
+      <text x="150" y="239" class="muted body">X 0</text><text x="250" y="239" class="muted body">Y 0</text><text x="366" y="239" class="ink body">W 605.9 Fill</text><text x="610" y="239" class="ink body">H 50.4 Hug</text>
+      <line class="line" x1="0" y1="298" x2="1010" y2="298"/>
+      <text x="0" y="354" class="ink h">阴影</text><rect class="ctrlSoft" x="120" y="318" width="70" height="54" rx="14"/><text x="148" y="353" class="purple h">+</text><text x="220" y="353" class="dim body">添加</text>
+      <text x="0" y="430" class="ink h">间距</text><rect class="ctrlSoft" x="120" y="394" width="70" height="54" rx="14"/><text x="148" y="429" class="purple h">+</text><text x="220" y="429" class="dim body">添加</text>
+    </g>
+  </g>
+
+  <!-- E -->
+  <g transform="translate(80 1640)">
+    <rect class="card" width="1180" height="680" rx="28"/>
+    <text x="34" y="52" class="purple h">E. 分组摘要 + 单组展开</text>
+    <text x="34" y="86" class="muted small">默认都是摘要行，同时只允许一个组展开，滚动压力最小。</text>
+    <rect class="panel" x="34" y="118" width="1112" height="520" rx="24"/>
+    <g transform="translate(64 150)">
+      <rect class="ctrl" width="1010" height="70" rx="18"/>
+      <text x="26" y="44" class="ink body">文字</text><text x="160" y="44" class="purple body">任务标题</text><text x="330" y="44" class="ink body">17 / 700</text><text x="480" y="44" class="muted body">text-strong</text>
+      <rect class="chip" y="96" width="1010" height="182" rx="20"/>
+      <text x="26" y="144" class="ink h">布局 · 展开中</text>
+      <text x="26" y="196" class="muted body">X</text><rect class="ctrl" x="70" y="164" width="160" height="54" rx="14"/><text x="102" y="199" class="ink body">0px</text>
+      <text x="270" y="196" class="muted body">Y</text><rect class="ctrl" x="316" y="164" width="160" height="54" rx="14"/><text x="348" y="199" class="ink body">0px</text>
+      <text x="520" y="196" class="muted body">W</text><rect class="ctrl" x="570" y="164" width="170" height="54" rx="14"/><text x="602" y="199" class="ink body">605.9</text>
+      <text x="780" y="196" class="muted body">H</text><rect class="ctrl" x="826" y="164" width="160" height="54" rx="14"/><text x="858" y="199" class="ink body">50.4</text>
+      <rect class="ctrl" y="304" width="1010" height="70" rx="18"/><text x="26" y="348" class="ink body">阴影</text><text x="160" y="348" class="dim body">无</text><text x="930" y="348" class="purple h">+</text>
+      <rect class="ctrl" y="400" width="1010" height="70" rx="18"/><text x="26" y="444" class="ink body">间距</text><text x="160" y="444" class="dim body">无</text><text x="930" y="444" class="purple h">+</text>
+    </g>
+  </g>
+
+  <!-- F -->
+  <g transform="translate(1340 1640)">
+    <rect class="card" width="1180" height="680" rx="28"/>
+    <text x="34" y="52" class="purple h">F. 微型工具条</text>
+    <text x="34" y="86" class="muted small">把面板当工具条使用：每行一个属性族，参数从右侧浮层调整。</text>
+    <rect class="panel" x="34" y="118" width="1112" height="520" rx="24"/>
+    <g transform="translate(64 154)">
+      <rect class="soft" width="1010" height="78" rx="20"/><text x="26" y="49" class="ink h">文字</text><rect class="chip" x="144" y="14" width="250" height="50" rx="14"/><text x="172" y="47" class="purple body">任务标题</text><text x="420" y="47" class="ink body">17/700</text>
+      <rect class="soft" y="104" width="1010" height="78" rx="20"/><text x="26" y="153" class="ink h">布局</text><rect class="ctrl" x="144" y="118" width="130" height="50" rx="14"/><text x="178" y="151" class="ink body">X 0</text><rect class="ctrl" x="290" y="118" width="130" height="50" rx="14"/><text x="324" y="151" class="ink body">Y 0</text><rect class="ctrl" x="438" y="118" width="176" height="50" rx="14"/><text x="466" y="151" class="ink body">W Fill</text><rect class="ctrl" x="630" y="118" width="176" height="50" rx="14"/><text x="658" y="151" class="ink body">H Hug</text>
+      <rect class="soft" y="208" width="1010" height="78" rx="20"/><text x="26" y="257" class="ink h">阴影</text><text x="144" y="257" class="dim body">无</text><circle cx="930" cy="247" r="24" class="chip"/><text x="923" y="256" class="purple h">+</text>
+      <rect class="soft" y="312" width="1010" height="78" rx="20"/><text x="26" y="361" class="ink h">间距</text><text x="144" y="361" class="dim body">无</text><circle cx="930" cy="351" r="24" class="chip"/><text x="923" y="360" class="purple h">+</text>
+    </g>
+  </g>
+
+  <!-- G -->
+  <g transform="translate(80 2380)">
+    <rect class="card" width="1180" height="680" rx="28"/>
+    <text x="34" y="52" class="purple h">G. 密集属性矩阵</text>
+    <text x="34" y="86" class="muted small">把数值型属性做成矩阵，适合高频调布局和间距。</text>
+    <rect class="panel" x="34" y="118" width="1112" height="520" rx="24"/>
+    <text x="64" y="168" class="ink h">基础</text>
+    <rect class="ctrl" x="64" y="194" width="1010" height="64" rx="16"/><text x="88" y="235" class="ink body">Dev Inspector</text>
+    <g transform="translate(64 292)">
+      <rect class="soft" width="240" height="116" rx="18"/><text x="24" y="42" class="dim small">X</text><text x="88" y="42" class="ink body">0px</text><text x="24" y="84" class="dim small">Y</text><text x="88" y="84" class="ink body">0px</text>
+      <rect class="soft" x="260" width="330" height="116" rx="18"/><text x="284" y="42" class="dim small">W</text><text x="348" y="42" class="ink body">605.9</text><text x="480" y="42" class="muted body">Fill</text><text x="284" y="84" class="dim small">H</text><text x="348" y="84" class="ink body">50.4</text><text x="480" y="84" class="muted body">Hug</text>
+      <rect class="soft" x="610" width="190" height="116" rx="18"/><text x="634" y="42" class="dim small">阴影</text><text x="722" y="42" class="purple h">+</text><text x="634" y="84" class="dim small">间距</text><text x="722" y="84" class="purple h">+</text>
+      <rect class="soft" x="820" width="190" height="116" rx="18"/><text x="844" y="42" class="dim small">文字</text><text x="844" y="84" class="purple body">任务标题</text>
+    </g>
+    <text x="64" y="492" class="muted body">优势：全部可扫读；劣势：新手需要一点学习成本。</text>
+  </g>
+
+  <!-- H -->
+  <g transform="translate(1340 2380)">
+    <rect class="card" width="1180" height="680" rx="28"/>
+    <text x="34" y="52" class="purple h">H. 摘要面板 + 右侧浮层</text>
+    <text x="34" y="86" class="muted small">主面板只显示摘要；点击某组后在右侧开小浮层编辑。</text>
+    <rect class="panel" x="34" y="118" width="720" height="520" rx="24"/>
+    <rect class="ctrl" x="64" y="154" width="660" height="64" rx="16"/><text x="88" y="195" class="ink body">Dev Inspector</text>
+    <rect class="ctrl" x="64" y="248" width="660" height="64" rx="16"/><text x="88" y="289" class="ink body">文字</text><text x="220" y="289" class="purple body">任务标题 · 17/700</text>
+    <rect class="chip" x="64" y="334" width="660" height="64" rx="16"/><text x="88" y="375" class="ink body">布局</text><text x="220" y="375" class="muted body">X0 Y0 W606 H50</text>
+    <rect class="ctrl" x="64" y="420" width="660" height="64" rx="16"/><text x="88" y="461" class="ink body">阴影</text><text x="220" y="461" class="dim body">无</text><text x="666" y="461" class="purple h">+</text>
+    <rect class="ctrl" x="64" y="506" width="660" height="64" rx="16"/><text x="88" y="547" class="ink body">间距</text><text x="220" y="547" class="dim body">无</text><text x="666" y="547" class="purple h">+</text>
+    <rect class="panel" x="790" y="188" width="326" height="370" rx="22"/>
+    <text x="820" y="236" class="ink h">布局详情</text>
+    <text x="820" y="286" class="muted body">X</text><rect class="ctrl" x="874" y="256" width="180" height="48" rx="12"/><text x="906" y="287" class="ink body">0px</text>
+    <text x="820" y="350" class="muted body">Y</text><rect class="ctrl" x="874" y="320" width="180" height="48" rx="12"/><text x="906" y="351" class="ink body">0px</text>
+    <text x="820" y="414" class="muted body">W</text><rect class="ctrl" x="874" y="384" width="180" height="48" rx="12"/><text x="906" y="415" class="ink body">605.9</text>
+    <text x="820" y="478" class="muted body">H</text><rect class="ctrl" x="874" y="448" width="180" height="48" rx="12"/><text x="906" y="479" class="ink body">50.4</text>
+  </g>
+</svg>

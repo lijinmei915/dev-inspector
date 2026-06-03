@@ -1,0 +1,224 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2600" height="1700" viewBox="0 0 2600 1700">
+  <defs>
+    <style>
+      .bg { fill: #f6f8fb; }
+      .canvas { fill: #fff; stroke: #dfe5ee; stroke-width: 2; }
+      .panel { fill: #fff; filter: url(#shadow); }
+      .section { fill: #fff; stroke: #eef2f7; stroke-width: 1.5; }
+      .soft { fill: #f8fafc; }
+      .soft2 { fill: #f3f6fb; }
+      .field { fill: #fff; stroke: #dfe5ee; stroke-width: 2; }
+      .fieldFocus { fill: #f7f2ff; stroke: #c4b5fd; stroke-width: 2.2; }
+      .primary { fill: #7c3aed; }
+      .primaryText { fill: #fff; font-weight: 800; }
+      .ink { fill: #0f172a; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .muted { fill: #64748b; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .dim { fill: #94a3b8; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .purple { fill: #7c3aed; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .line { stroke: #edf1f6; stroke-width: 2; }
+      .swatch { fill: #0f172a; }
+      .h1 { font-size: 38px; font-weight: 880; }
+      .h2 { font-size: 28px; font-weight: 850; }
+      .h3 { font-size: 22px; font-weight: 800; }
+      .body { font-size: 20px; font-weight: 650; }
+      .small { font-size: 16px; font-weight: 650; }
+      .mini { font-size: 13px; font-weight: 700; }
+    </style>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#0f172a" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <rect class="bg" width="2600" height="1700"/>
+  <text x="88" y="80" class="ink h1">E / F 两套候选：Dev Inspector 更紧凑的样式面板</text>
+  <text x="88" y="122" class="muted body">两套都保留现有能力，只调整信息结构。E 更稳，F 更快。</text>
+
+  <!-- Scheme E -->
+  <g transform="translate(80 180)">
+    <rect class="canvas" width="1180" height="1400" rx="32"/>
+    <text x="36" y="58" class="purple h2">方案 E：分组摘要 + 单组展开</text>
+    <text x="36" y="94" class="muted small">默认每个模块一行摘要；同时只展开一个模块。适合从现有面板平滑迁移。</text>
+
+    <g transform="translate(210 140)">
+      <rect class="panel" width="760" height="1120" rx="28"/>
+      <rect class="section" width="760" height="86" rx="28"/>
+      <text x="28" y="54" class="ink h2">页面样式</text>
+      <rect x="188" y="24" width="98" height="38" rx="11" fill="#f0e9ff"/>
+      <text x="206" y="49" class="purple small">Dev Only</text>
+      <rect class="field" x="650" y="20" width="48" height="48" rx="12"/>
+      <text x="669" y="52" class="muted h3">×</text>
+
+      <g transform="translate(0 86)">
+        <rect class="section" width="760" height="128"/>
+        <text x="28" y="48" class="ink h3">作用范围</text>
+        <rect class="fieldFocus" x="28" y="68" width="330" height="44" rx="12"/>
+        <text x="146" y="97" class="purple small">当前元素</text>
+        <rect class="field" x="380" y="68" width="330" height="44" rx="12"/>
+        <text x="484" y="97" class="ink small">相同元素 1</text>
+      </g>
+
+      <g transform="translate(0 214)">
+        <rect class="section" width="760" height="220"/>
+        <text x="28" y="48" class="ink h3">文字</text>
+        <rect class="field" x="28" y="68" width="704" height="70" rx="14"/>
+        <text x="54" y="112" class="ink body">Dev Inspector</text>
+        <rect class="field" x="28" y="154" width="704" height="48" rx="14"/>
+        <text x="54" y="185" class="purple body">任务标题</text>
+        <text x="210" y="185" class="ink body">17px / 700</text>
+        <text x="360" y="185" class="muted body">text-strong</text>
+        <text x="688" y="185" class="dim body">⌄</text>
+      </g>
+
+      <g transform="translate(0 434)">
+        <rect class="section" width="760" height="250"/>
+        <rect class="fieldFocus" x="28" y="24" width="704" height="58" rx="16"/>
+        <text x="54" y="61" class="ink h3">布局</text>
+        <text x="150" y="61" class="muted body">X0 / Y0 / W605.9 Fill / H50.4 Hug</text>
+        <text x="690" y="61" class="purple small">收起</text>
+        <g transform="translate(28 104)">
+          <rect class="soft" width="704" height="120" rx="16"/>
+          <text x="24" y="38" class="dim mini">位置</text>
+          <text x="24" y="84" class="muted body">X</text><rect class="field" x="60" y="52" width="132" height="48" rx="12"/><text x="88" y="84" class="ink body">0px</text>
+          <text x="220" y="84" class="muted body">Y</text><rect class="field" x="256" y="52" width="132" height="48" rx="12"/><text x="284" y="84" class="ink body">0px</text>
+          <text x="420" y="38" class="dim mini">尺寸</text>
+          <text x="420" y="84" class="muted body">W</text><rect class="field" x="462" y="52" width="112" height="48" rx="12"/><text x="486" y="84" class="ink body">605.9</text>
+          <rect class="field" x="588" y="52" width="92" height="48" rx="12"/><text x="612" y="84" class="ink body">Fill</text>
+        </g>
+      </g>
+
+      <g transform="translate(0 684)">
+        <rect class="section" width="760" height="84"/>
+        <text x="28" y="52" class="ink h3">阴影</text>
+        <text x="128" y="52" class="dim body">无</text>
+        <rect class="field" x="672" y="22" width="44" height="44" rx="12"/>
+        <text x="688" y="52" class="purple h3">+</text>
+      </g>
+
+      <g transform="translate(0 768)">
+        <rect class="section" width="760" height="84"/>
+        <text x="28" y="52" class="ink h3">间距</text>
+        <text x="128" y="52" class="dim body">无</text>
+        <rect class="field" x="672" y="22" width="44" height="44" rx="12"/>
+        <text x="688" y="52" class="purple h3">+</text>
+      </g>
+
+      <g transform="translate(0 852)">
+        <rect class="section" width="760" height="142"/>
+        <text x="28" y="48" class="ink h3">本次修改内容 2</text>
+        <rect x="28" y="68" width="704" height="52" rx="14" fill="#f7f2ff" stroke="#e9d5ff" stroke-width="2"/>
+        <text x="52" y="101" class="ink small">h1 · 文字色：text-muted → text-strong</text>
+      </g>
+
+      <g transform="translate(0 994)">
+        <rect class="section" width="760" height="126" rx="0 0 28 28"/>
+        <rect class="field" x="28" y="30" width="170" height="58" rx="14"/>
+        <text x="84" y="67" class="ink body">重置</text>
+        <rect class="field" x="218" y="30" width="170" height="58" rx="14"/>
+        <text x="264" y="67" class="ink body">复制样式</text>
+        <rect class="primary" x="414" y="30" width="318" height="58" rx="14"/>
+        <text x="520" y="67" class="primaryText body">发送给AI</text>
+      </g>
+    </g>
+
+    <g transform="translate(36 1302)">
+      <text x="0" y="0" class="ink h3">推荐场景</text>
+      <text x="0" y="34" class="muted small">想保留当前用户心智，又明显减少滚动和卡片感。</text>
+      <text x="0" y="68" class="muted small">落地成本低：现有 section 改为摘要行 + 当前展开区即可。</text>
+    </g>
+  </g>
+
+  <!-- Scheme F -->
+  <g transform="translate(1340 180)">
+    <rect class="canvas" width="1180" height="1400" rx="32"/>
+    <text x="36" y="58" class="purple h2">方案 F：微型工具条</text>
+    <text x="36" y="94" class="muted small">每个模块像工具条一样横向排列；参数编辑通过行内控制和小浮层完成。</text>
+
+    <g transform="translate(210 140)">
+      <rect class="panel" width="760" height="1120" rx="28"/>
+      <rect class="section" width="760" height="86" rx="28"/>
+      <text x="28" y="54" class="ink h2">页面样式</text>
+      <rect x="188" y="24" width="98" height="38" rx="11" fill="#f0e9ff"/>
+      <text x="206" y="49" class="purple small">Dev Only</text>
+      <rect class="field" x="650" y="20" width="48" height="48" rx="12"/>
+      <text x="669" y="52" class="muted h3">×</text>
+
+      <g transform="translate(0 86)">
+        <rect class="section" width="760" height="118"/>
+        <text x="28" y="46" class="ink h3">作用范围</text>
+        <rect class="fieldFocus" x="28" y="62" width="330" height="40" rx="12"/>
+        <text x="146" y="88" class="purple small">当前元素</text>
+        <rect class="field" x="380" y="62" width="330" height="40" rx="12"/>
+        <text x="484" y="88" class="ink small">相同元素 1</text>
+      </g>
+
+      <g transform="translate(0 204)">
+        <rect class="section" width="760" height="108"/>
+        <rect class="soft" x="28" y="22" width="704" height="64" rx="16"/>
+        <text x="54" y="62" class="ink h3">文字</text>
+        <rect class="fieldFocus" x="140" y="30" width="178" height="48" rx="13"/>
+        <text x="164" y="62" class="purple body">任务标题</text>
+        <rect class="field" x="332" y="30" width="118" height="48" rx="13"/>
+        <text x="360" y="62" class="ink body">17px</text>
+        <rect class="field" x="464" y="30" width="118" height="48" rx="13"/>
+        <text x="492" y="62" class="ink body">700</text>
+        <rect class="field" x="596" y="30" width="110" height="48" rx="13"/>
+        <rect class="swatch" x="614" y="42" width="24" height="24" rx="6"/>
+        <text x="648" y="62" class="purple small">text</text>
+      </g>
+
+      <g transform="translate(0 312)">
+        <rect class="section" width="760" height="120"/>
+        <rect class="soft" x="28" y="22" width="704" height="76" rx="16"/>
+        <text x="54" y="68" class="ink h3">布局</text>
+        <rect class="field" x="140" y="36" width="94" height="48" rx="13"/><text x="166" y="68" class="ink body">X 0</text>
+        <rect class="field" x="246" y="36" width="94" height="48" rx="13"/><text x="272" y="68" class="ink body">Y 0</text>
+        <rect class="field" x="354" y="36" width="136" height="48" rx="13"/><text x="378" y="68" class="ink body">W Fill</text>
+        <rect class="field" x="504" y="36" width="136" height="48" rx="13"/><text x="528" y="68" class="ink body">H Hug</text>
+      </g>
+
+      <g transform="translate(0 432)">
+        <rect class="section" width="760" height="100"/>
+        <rect class="soft" x="28" y="20" width="704" height="60" rx="16"/>
+        <text x="54" y="58" class="ink h3">阴影</text>
+        <text x="154" y="58" class="dim body">无</text>
+        <circle cx="684" cy="50" r="22" fill="#f5f0ff" stroke="#c4b5fd" stroke-width="2"/>
+        <text x="676" y="59" class="purple h3">+</text>
+      </g>
+
+      <g transform="translate(0 532)">
+        <rect class="section" width="760" height="100"/>
+        <rect class="soft" x="28" y="20" width="704" height="60" rx="16"/>
+        <text x="54" y="58" class="ink h3">间距</text>
+        <text x="154" y="58" class="dim body">无</text>
+        <circle cx="684" cy="50" r="22" fill="#f5f0ff" stroke="#c4b5fd" stroke-width="2"/>
+        <text x="676" y="59" class="purple h3">+</text>
+      </g>
+
+      <g transform="translate(0 632)">
+        <rect class="section" width="760" height="170"/>
+        <text x="28" y="46" class="ink h3">示例：点击阴影 + 后</text>
+        <rect class="fieldFocus" x="28" y="68" width="220" height="52" rx="14"/><text x="62" y="102" class="purple body">柔和</text>
+        <rect class="field" x="266" y="68" width="70" height="52" rx="14"/>
+        <rect x="284" y="84" width="34" height="20" rx="6" fill="#fff" stroke="#dfe5ee" stroke-width="2"/>
+        <text x="360" y="102" class="muted body">--shadow-card</text>
+        <text x="28" y="148" class="dim small">需要精调时，点「自定义」再展开 X / Y / 模糊 / 扩散 / 颜色。</text>
+      </g>
+
+      <g transform="translate(0 994)">
+        <rect class="section" width="760" height="126" rx="0 0 28 28"/>
+        <rect class="field" x="28" y="30" width="170" height="58" rx="14"/>
+        <text x="84" y="67" class="ink body">重置</text>
+        <rect class="field" x="218" y="30" width="170" height="58" rx="14"/>
+        <text x="264" y="67" class="ink body">复制样式</text>
+        <rect class="primary" x="414" y="30" width="318" height="58" rx="14"/>
+        <text x="520" y="67" class="primaryText body">发送给AI</text>
+      </g>
+    </g>
+
+    <g transform="translate(36 1302)">
+      <text x="0" y="0" class="ink h3">推荐场景</text>
+      <text x="0" y="34" class="muted small">目标是高频调样式，用户愿意接受更像工具条的界面。</text>
+      <text x="0" y="68" class="muted small">落地成本中等：需要把多个 section 控件统一成 row control。</text>
+    </g>
+  </g>
+</svg>

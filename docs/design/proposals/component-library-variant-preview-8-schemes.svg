@@ -1,0 +1,303 @@
+<svg width="2400" height="1680" viewBox="0 0 2400 1680" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="124%">
+      <feDropShadow dx="0" dy="14" stdDeviation="22" flood-color="#0f172a" flood-opacity="0.08"/>
+    </filter>
+    <style>
+      .title { font: 800 42px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #0f172a; letter-spacing: 0; }
+      .sub { font: 500 20px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #64748b; letter-spacing: 0; }
+      .panelTitle { font: 800 26px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #0f172a; letter-spacing: 0; }
+      .tag { font: 800 18px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #7c3aed; letter-spacing: 0; }
+      .label { font: 700 17px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #94a3b8; letter-spacing: 0; }
+      .text { font: 700 18px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #334155; letter-spacing: 0; }
+      .strong { font: 800 20px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #0f172a; letter-spacing: 0; }
+      .small { font: 600 15px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #64748b; letter-spacing: 0; }
+      .tiny { font: 600 13px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #94a3b8; letter-spacing: 0; }
+      .btn { font: 800 18px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #fff; letter-spacing: 0; }
+      .btn2 { font: 800 17px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #334155; letter-spacing: 0; }
+      .purple { fill: #7c3aed; }
+      .panel { fill: #fff; stroke: #e2e8f0; stroke-width: 1.5; }
+      .group { fill: #f8fafc; }
+      .control { fill: #fff; stroke: #e2e8f0; stroke-width: 1.5; }
+      .selected { fill: #f5f3ff; stroke: #c4b5fd; stroke-width: 2; }
+    </style>
+  </defs>
+
+  <rect width="2400" height="1680" fill="#f8fafc"/>
+  <text x="56" y="70" class="title">组件库 + 可预览变体创建 · 8 个交互方案</text>
+  <text x="56" y="106" class="sub">目标：能浏览所有组件，基于现有组件生成新变体，并在记录前看到真实效果。</text>
+
+  <!-- A -->
+  <g transform="translate(48 148)" filter="url(#shadow)">
+    <rect width="552" height="690" rx="22" class="panel"/>
+    <text x="24" y="44" class="tag">A</text>
+    <text x="58" y="45" class="panelTitle">左库右预览</text>
+    <rect x="24" y="76" width="154" height="548" rx="16" class="group"/>
+    <text x="44" y="112" class="label">全部组件</text>
+    <rect x="42" y="134" width="118" height="42" rx="12" fill="#7c3aed"/>
+    <text x="79" y="162" class="btn">Card</text>
+    <rect x="42" y="190" width="118" height="42" rx="12" class="control"/>
+    <text x="74" y="218" class="btn2">Button</text>
+    <rect x="42" y="246" width="118" height="42" rx="12" class="control"/>
+    <text x="78" y="274" class="btn2">Badge</text>
+    <rect x="42" y="302" width="118" height="42" rx="12" class="control"/>
+    <text x="82" y="330" class="btn2">Input</text>
+    <rect x="202" y="76" width="326" height="140" rx="16" class="group"/>
+    <text x="224" y="116" class="label">当前组件</text>
+    <text x="224" y="154" class="strong">card-task</text>
+    <text x="224" y="188" class="small">3 个实例 · 4 个展示变体</text>
+    <rect x="202" y="238" width="326" height="204" rx="16" class="group"/>
+    <text x="224" y="276" class="label">实时预览</text>
+    <rect x="236" y="304" width="258" height="98" rx="12" fill="#fff" stroke="#c4b5fd" stroke-width="2"/>
+    <rect x="258" y="324" width="66" height="24" rx="8" fill="#dbeafe"/>
+    <text x="270" y="342" class="tiny" fill="#2563eb">进行中</text>
+    <text x="258" y="376" class="strong">任务标题</text>
+    <rect x="202" y="464" width="326" height="110" rx="16" class="group"/>
+    <text x="224" y="502" class="label">新变体</text>
+    <rect x="304" y="482" width="80" height="36" rx="10" class="selected"/>
+    <text x="326" y="506" class="tag">浮起</text>
+    <rect x="396" y="482" width="80" height="36" rx="10" class="control"/>
+    <text x="418" y="506" class="text">强调</text>
+    <rect x="202" y="594" width="326" height="46" rx="14" fill="#7c3aed"/>
+    <text x="310" y="624" class="btn">记录变体</text>
+    <text x="30" y="662" class="small">适合：浏览库和预览保持同屏。</text>
+  </g>
+
+  <!-- B -->
+  <g transform="translate(632 148)" filter="url(#shadow)">
+    <rect width="552" height="690" rx="22" class="panel"/>
+    <text x="24" y="44" class="tag">B</text>
+    <text x="58" y="45" class="panelTitle">组件画廊 + 抽屉</text>
+    <rect x="24" y="76" width="504" height="282" rx="16" class="group"/>
+    <text x="44" y="112" class="label">组件库</text>
+    <rect x="44" y="136" width="220" height="82" rx="14" class="selected"/>
+    <text x="66" y="174" class="strong">card-task</text>
+    <text x="66" y="202" class="small">Card · 4 variants</text>
+    <rect x="286" y="136" width="220" height="82" rx="14" class="control"/>
+    <text x="308" y="174" class="strong">button-primary</text>
+    <text x="308" y="202" class="small">Button · 3 variants</text>
+    <rect x="44" y="238" width="220" height="82" rx="14" class="control"/>
+    <text x="66" y="276" class="strong">badge-status</text>
+    <text x="66" y="304" class="small">Badge · 5 states</text>
+    <rect x="286" y="238" width="220" height="82" rx="14" class="control"/>
+    <text x="308" y="276" class="strong">input-text</text>
+    <text x="308" y="304" class="small">Input · 2 sizes</text>
+    <rect x="24" y="382" width="504" height="244" rx="18" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="48" y="422" class="label">底部抽屉：基于 card-task 新建</text>
+    <rect x="48" y="446" width="110" height="44" rx="12" class="selected"/>
+    <text x="78" y="475" class="tag">紧凑</text>
+    <rect x="174" y="446" width="110" height="44" rx="12" class="control"/>
+    <text x="204" y="475" class="text">浮起</text>
+    <rect x="300" y="446" width="110" height="44" rx="12" class="control"/>
+    <text x="330" y="475" class="text">强调</text>
+    <rect x="48" y="514" width="338" height="72" rx="12" fill="#f8fafc"/>
+    <text x="72" y="546" class="small">预览：标题更紧、内边距更小</text>
+    <text x="72" y="572" class="tiny">spacing 24 -> 16 / title 17 -> 15</text>
+    <rect x="402" y="514" width="102" height="72" rx="14" fill="#7c3aed"/>
+    <text x="436" y="558" class="btn">记录</text>
+    <text x="30" y="662" class="small">适合：组件很多时，用画廊先筛选。</text>
+  </g>
+
+  <!-- C -->
+  <g transform="translate(1216 148)" filter="url(#shadow)">
+    <rect width="552" height="690" rx="22" class="panel"/>
+    <text x="24" y="44" class="tag">C</text>
+    <text x="58" y="45" class="panelTitle">变体矩阵</text>
+    <rect x="24" y="76" width="504" height="66" rx="16" class="group"/>
+    <text x="46" y="117" class="label">组件</text>
+    <rect x="112" y="92" width="180" height="34" rx="10" class="control"/>
+    <text x="134" y="115" class="strong">card-task</text>
+    <text x="330" y="116" class="tag">已有 4 / 新增 3</text>
+    <rect x="24" y="164" width="504" height="292" rx="16" class="group"/>
+    <text x="50" y="204" class="label">维度</text>
+    <text x="186" y="204" class="label">已有</text>
+    <text x="336" y="204" class="label">新增</text>
+    <text x="50" y="260" class="strong">展示</text>
+    <rect x="166" y="232" width="102" height="38" rx="10" class="control"/>
+    <text x="198" y="257" class="text">默认</text>
+    <rect x="316" y="232" width="102" height="38" rx="10" class="selected"/>
+    <text x="348" y="257" class="tag">浮起</text>
+    <text x="50" y="322" class="strong">尺寸</text>
+    <rect x="166" y="294" width="102" height="38" rx="10" class="control"/>
+    <text x="208" y="319" class="text">M</text>
+    <rect x="316" y="294" width="102" height="38" rx="10" class="selected"/>
+    <text x="360" y="319" class="tag">L</text>
+    <text x="50" y="384" class="strong">状态</text>
+    <rect x="166" y="356" width="102" height="38" rx="10" class="control"/>
+    <text x="198" y="381" class="text">默认</text>
+    <rect x="316" y="356" width="102" height="38" rx="10" class="selected"/>
+    <text x="348" y="381" class="tag">禁用</text>
+    <rect x="24" y="480" width="504" height="106" rx="16" class="group"/>
+    <text x="48" y="520" class="label">预览</text>
+    <rect x="112" y="500" width="280" height="62" rx="12" fill="#fff" stroke="#c4b5fd" stroke-width="2"/>
+    <text x="138" y="539" class="strong">浮起 · L · disabled</text>
+    <rect x="410" y="500" width="88" height="62" rx="14" fill="#7c3aed"/>
+    <text x="438" y="539" class="btn">记录</text>
+    <text x="30" y="662" class="small">适合：一次补齐多个维度。</text>
+  </g>
+
+  <!-- D -->
+  <g transform="translate(1800 148)" filter="url(#shadow)">
+    <rect width="552" height="690" rx="22" class="panel"/>
+    <text x="24" y="44" class="tag">D</text>
+    <text x="58" y="45" class="panelTitle">前后对比</text>
+    <rect x="24" y="78" width="236" height="310" rx="16" class="group"/>
+    <text x="46" y="118" class="label">当前</text>
+    <rect x="50" y="144" width="184" height="130" rx="14" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="72" y="190" class="strong">任务标题</text>
+    <text x="72" y="222" class="small">正文说明</text>
+    <text x="66" y="324" class="small">default · M · soft</text>
+    <rect x="292" y="78" width="236" height="310" rx="16" class="selected"/>
+    <text x="314" y="118" class="label">新变体</text>
+    <rect x="318" y="136" width="184" height="150" rx="14" fill="#fff" stroke="#7c3aed" stroke-width="2"/>
+    <text x="340" y="188" class="strong">任务标题</text>
+    <text x="340" y="220" class="small">正文说明</text>
+    <rect x="340" y="242" width="72" height="22" rx="8" fill="#ede9fe"/>
+    <text x="354" y="258" class="tiny" fill="#7c3aed">浮起</text>
+    <text x="330" y="324" class="small">floating · M · shadow</text>
+    <rect x="24" y="420" width="504" height="112" rx="16" class="group"/>
+    <text x="48" y="458" class="label">差异</text>
+    <rect x="104" y="438" width="92" height="36" rx="10" class="control"/>
+    <text x="130" y="462" class="text">阴影</text>
+    <rect x="210" y="438" width="92" height="36" rx="10" class="control"/>
+    <text x="236" y="462" class="text">圆角</text>
+    <rect x="316" y="438" width="92" height="36" rx="10" class="control"/>
+    <text x="342" y="462" class="text">间距</text>
+    <text x="104" y="508" class="tag">shadow-card / radius 12 / padding +8</text>
+    <rect x="24" y="562" width="504" height="52" rx="14" fill="#7c3aed"/>
+    <text x="218" y="596" class="btn">确认变体</text>
+    <text x="30" y="662" class="small">适合：用户必须看到变体效果时。</text>
+  </g>
+
+  <!-- E -->
+  <g transform="translate(48 890)" filter="url(#shadow)">
+    <rect width="552" height="690" rx="22" class="panel"/>
+    <text x="24" y="44" class="tag">E</text>
+    <text x="58" y="45" class="panelTitle">画布预览板</text>
+    <rect x="24" y="76" width="504" height="378" rx="16" class="group"/>
+    <text x="46" y="116" class="label">Variant Canvas</text>
+    <rect x="46" y="144" width="202" height="120" rx="14" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="70" y="192" class="strong">默认</text>
+    <text x="70" y="224" class="small">default</text>
+    <rect x="276" y="144" width="202" height="120" rx="14" fill="#fff" stroke="#c4b5fd" stroke-width="2"/>
+    <text x="300" y="192" class="tag">紧凑</text>
+    <text x="300" y="224" class="small">compact</text>
+    <rect x="46" y="294" width="202" height="120" rx="14" fill="#fff" stroke="#c4b5fd" stroke-width="2"/>
+    <text x="70" y="342" class="tag">浮起</text>
+    <text x="70" y="374" class="small">floating</text>
+    <rect x="276" y="294" width="202" height="120" rx="14" fill="#0f172a"/>
+    <text x="300" y="342" class="btn">强调</text>
+    <text x="300" y="374" class="tiny" fill="#cbd5e1">emphasis</text>
+    <rect x="24" y="484" width="504" height="96" rx="16" class="group"/>
+    <text x="48" y="522" class="label">选中</text>
+    <rect x="104" y="500" width="88" height="38" rx="10" class="selected"/>
+    <text x="128" y="525" class="tag">紧凑</text>
+    <rect x="202" y="500" width="88" height="38" rx="10" class="selected"/>
+    <text x="226" y="525" class="tag">浮起</text>
+    <rect x="302" y="500" width="88" height="38" rx="10" class="selected"/>
+    <text x="326" y="525" class="tag">强调</text>
+    <rect x="410" y="500" width="88" height="38" rx="10" fill="#7c3aed"/>
+    <text x="438" y="525" class="btn">记录</text>
+    <text x="30" y="662" class="small">适合：先看一组变体缩略图，再批量记录。</text>
+  </g>
+
+  <!-- F -->
+  <g transform="translate(632 890)" filter="url(#shadow)">
+    <rect width="552" height="690" rx="22" class="panel"/>
+    <text x="24" y="44" class="tag">F</text>
+    <text x="58" y="45" class="panelTitle">组件树 + 配方</text>
+    <rect x="24" y="76" width="190" height="536" rx="16" class="group"/>
+    <text x="44" y="116" class="label">组件树</text>
+    <text x="48" y="158" class="strong">Card</text>
+    <text x="70" y="196" class="text">card-task</text>
+    <text x="92" y="232" class="small">标签</text>
+    <text x="92" y="264" class="small">标题</text>
+    <text x="92" y="296" class="small">说明文</text>
+    <text x="48" y="350" class="strong">Button</text>
+    <text x="70" y="386" class="text">ghost-button</text>
+    <rect x="238" y="76" width="290" height="172" rx="16" class="group"/>
+    <text x="262" y="116" class="label">基于</text>
+    <rect x="262" y="136" width="238" height="52" rx="12" class="control"/>
+    <text x="286" y="170" class="strong">card-task / default</text>
+    <rect x="262" y="204" width="238" height="30" rx="10" fill="#ede9fe"/>
+    <text x="300" y="224" class="tag">复制结构 + 替换 token</text>
+    <rect x="238" y="272" width="290" height="270" rx="16" class="group"/>
+    <text x="262" y="312" class="label">变体配方</text>
+    <rect x="262" y="334" width="238" height="46" rx="12" class="selected"/>
+    <text x="286" y="364" class="tag">浮起：shadow + padding</text>
+    <rect x="262" y="394" width="238" height="46" rx="12" class="control"/>
+    <text x="286" y="424" class="text">紧凑：spacing -1</text>
+    <rect x="262" y="454" width="238" height="46" rx="12" class="control"/>
+    <text x="286" y="484" class="text">强调：brand border</text>
+    <rect x="238" y="568" width="290" height="52" rx="14" fill="#7c3aed"/>
+    <text x="328" y="602" class="btn">记录配方</text>
+    <text x="30" y="662" class="small">适合：组件有槽位和内部结构时。</text>
+  </g>
+
+  <!-- G -->
+  <g transform="translate(1216 890)" filter="url(#shadow)">
+    <rect width="552" height="690" rx="22" class="panel"/>
+    <text x="24" y="44" class="tag">G</text>
+    <text x="58" y="45" class="panelTitle">搜索型组件库</text>
+    <rect x="24" y="76" width="504" height="56" rx="16" class="control"/>
+    <text x="52" y="112" class="label">Search</text>
+    <text x="126" y="112" class="text">card / badge / button</text>
+    <rect x="24" y="158" width="504" height="292" rx="16" class="group"/>
+    <rect x="44" y="182" width="464" height="58" rx="14" class="selected"/>
+    <rect x="62" y="197" width="28" height="28" rx="7" fill="#fff" stroke="#c4b5fd" stroke-width="2"/>
+    <text x="108" y="218" class="strong">card-task</text>
+    <text x="360" y="218" class="small">Card · 4</text>
+    <rect x="44" y="252" width="464" height="58" rx="14" class="control"/>
+    <rect x="62" y="267" width="28" height="28" rx="7" fill="#7c3aed"/>
+    <text x="108" y="288" class="strong">button-primary</text>
+    <text x="360" y="288" class="small">Button · 3</text>
+    <rect x="44" y="322" width="464" height="58" rx="14" class="control"/>
+    <rect x="62" y="337" width="28" height="28" rx="7" fill="#bbf7d0"/>
+    <text x="108" y="358" class="strong">badge-status</text>
+    <text x="360" y="358" class="small">Badge · 5</text>
+    <rect x="24" y="480" width="504" height="92" rx="16" class="group"/>
+    <text x="48" y="518" class="label">模板</text>
+    <rect x="110" y="498" width="110" height="38" rx="10" class="selected"/>
+    <text x="138" y="523" class="tag">常用组</text>
+    <rect x="232" y="498" width="110" height="38" rx="10" class="control"/>
+    <text x="260" y="523" class="text">状态组</text>
+    <rect x="354" y="498" width="110" height="38" rx="10" class="control"/>
+    <text x="382" y="523" class="text">尺寸组</text>
+    <rect x="24" y="594" width="504" height="48" rx="14" fill="#7c3aed"/>
+    <text x="218" y="625" class="btn">创建变体</text>
+    <text x="30" y="662" class="small">适合：组件很多时快速检索和套模板。</text>
+  </g>
+
+  <!-- H -->
+  <g transform="translate(1800 890)" filter="url(#shadow)">
+    <rect width="552" height="690" rx="22" class="panel"/>
+    <text x="24" y="44" class="tag">H</text>
+    <text x="58" y="45" class="panelTitle">变体沙盒</text>
+    <rect x="24" y="76" width="504" height="248" rx="16" class="group"/>
+    <text x="46" y="116" class="label">Live Preview</text>
+    <rect x="122" y="138" width="300" height="142" rx="14" fill="#fff" stroke="#c4b5fd" stroke-width="2"/>
+    <rect x="146" y="162" width="74" height="24" rx="8" fill="#dbeafe"/>
+    <text x="158" y="180" class="tiny" fill="#2563eb">进行中</text>
+    <text x="146" y="220" class="strong">任务标题</text>
+    <text x="146" y="252" class="small">卡片描述文案</text>
+    <rect x="24" y="350" width="504" height="206" rx="16" class="group"/>
+    <text x="48" y="388" class="label">控制</text>
+    <text x="48" y="438" class="text">展示</text>
+    <rect x="122" y="410" width="90" height="40" rx="10" class="selected"/>
+    <text x="148" y="436" class="tag">浮起</text>
+    <rect x="224" y="410" width="90" height="40" rx="10" class="control"/>
+    <text x="250" y="436" class="text">强调</text>
+    <text x="48" y="498" class="text">尺寸</text>
+    <rect x="122" y="470" width="70" height="40" rx="10" class="control"/>
+    <text x="150" y="496" class="text">S</text>
+    <rect x="202" y="470" width="70" height="40" rx="10" class="selected"/>
+    <text x="230" y="496" class="tag">M</text>
+    <rect x="282" y="470" width="70" height="40" rx="10" class="control"/>
+    <text x="310" y="496" class="text">L</text>
+    <rect x="24" y="582" width="240" height="46" rx="14" class="control"/>
+    <text x="62" y="612" class="btn2">保存为 floating-M</text>
+    <rect x="284" y="582" width="244" height="46" rx="14" fill="#7c3aed"/>
+    <text x="354" y="612" class="btn">记录变体</text>
+    <text x="30" y="662" class="small">适合：边调边看，确认后命名保存。</text>
+  </g>
+</svg>

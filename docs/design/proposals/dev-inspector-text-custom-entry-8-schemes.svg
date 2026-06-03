@@ -1,0 +1,188 @@
+<svg width="2800" height="2100" viewBox="0 0 2800 2100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="26" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .page { fill: #f8fafc; }
+      .panel { fill: #fff; stroke: #e2e8f0; stroke-width: 2; filter: url(#cardShadow); }
+      .section { fill: #fff; stroke: #e2e8f0; stroke-width: 2; }
+      .soft { fill: #f8fafc; }
+      .softBorder { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 2; }
+      .field { fill: #fff; stroke: #e2e8f0; stroke-width: 2; }
+      .fieldOn { fill: #f5f3ff; stroke: #c4b5fd; stroke-width: 2; }
+      .darkChip { fill: #0f172a; }
+      .purpleBg { fill: #7c3aed; }
+      .purpleSoft { fill: #f3e8ff; }
+      .purpleText { fill: #7c3aed; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .ink { fill: #0f172a; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .muted { fill: #64748b; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .dim { fill: #94a3b8; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .whiteText { fill: #fff; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .title { font-size: 44px; font-weight: 850; letter-spacing: 0; }
+      .subtitle { font-size: 24px; font-weight: 600; letter-spacing: 0; }
+      .h { font-size: 30px; font-weight: 850; letter-spacing: 0; }
+      .body { font-size: 24px; font-weight: 700; letter-spacing: 0; }
+      .small { font-size: 20px; font-weight: 650; letter-spacing: 0; }
+      .tiny { font-size: 17px; font-weight: 650; letter-spacing: 0; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+      .line { stroke: #e2e8f0; stroke-width: 2; }
+      .arrow { stroke: #94a3b8; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+  </defs>
+
+  <rect class="page" width="2800" height="2100"/>
+  <text x="88" y="92" class="ink title">文字「自定义样式」入口：8 个位置方案</text>
+  <text x="88" y="134" class="muted subtitle">目标：减少第一颗大按钮占位，同时保留预设 / 自定义、字号、字重、颜色的即时调节能力。</text>
+
+  <!-- A -->
+  <g transform="translate(88 210)">
+    <rect class="panel" width="1260" height="370" rx="34"/>
+    <text x="34" y="58" class="purpleText h">A. 标题右侧模式 Chip</text>
+    <text x="34" y="92" class="muted small">把“自定义样式”放到文字模块标题右侧，样式行只留参数。</text>
+    <rect class="section" x="34" y="118" width="1192" height="206" rx="22"/>
+    <text x="64" y="158" class="ink body">文字</text>
+    <rect class="purpleSoft" x="976" y="130" width="206" height="46" rx="18"/>
+    <text x="1014" y="160" class="purpleText small">自定义样式</text>
+    <path class="arrow" d="M1150 148l10 10 10-10"/>
+    <rect class="soft" x="64" y="188" width="1110" height="104" rx="20"/>
+    <text x="94" y="230" class="dim small">内容</text>
+    <rect class="field" x="190" y="202" width="950" height="48" rx="14"/>
+    <text x="218" y="234" class="ink small">Dev Inspector</text>
+    <text x="94" y="274" class="dim small">文字样式</text>
+    <rect class="field" x="190" y="256" width="150" height="48" rx="14"/><text x="226" y="288" class="ink small">15px</text><path class="arrow" d="M304 274l8 8 8-8"/>
+    <rect class="field" x="356" y="256" width="150" height="48" rx="14"/><text x="386" y="288" class="purpleText small">粗</text><text x="428" y="288" class="ink small">600</text><path class="arrow" d="M470 274l8 8 8-8"/>
+    <rect class="field" x="522" y="256" width="196" height="48" rx="14"/><rect class="darkChip" x="540" y="266" width="28" height="28" rx="8"/><text x="586" y="288" class="purpleText small">text...</text>
+    <text x="790" y="288" class="muted small">优点：省宽度；缺点：标题区变成操作区。</text>
+  </g>
+
+  <!-- B -->
+  <g transform="translate(1452 210)">
+    <rect class="panel" width="1260" height="370" rx="34"/>
+    <text x="34" y="58" class="purpleText h">B. 标签旁短 Badge</text>
+    <text x="34" y="92" class="muted small">入口贴在“文字样式”标签后，像字段状态，不再占用控件列。</text>
+    <rect class="section" x="34" y="118" width="1192" height="206" rx="22"/>
+    <text x="64" y="158" class="ink body">文字</text>
+    <rect class="soft" x="64" y="188" width="1110" height="104" rx="20"/>
+    <text x="94" y="230" class="dim small">内容</text>
+    <rect class="field" x="190" y="202" width="950" height="48" rx="14"/><text x="218" y="234" class="ink small">Dev Inspector</text>
+    <text x="94" y="274" class="dim small">文字样式</text>
+    <rect class="purpleSoft" x="188" y="256" width="90" height="48" rx="14"/><text x="210" y="288" class="purpleText small">自定义</text>
+    <rect class="field" x="296" y="256" width="134" height="48" rx="14"/><text x="328" y="288" class="ink small">15px</text>
+    <rect class="field" x="446" y="256" width="144" height="48" rx="14"/><text x="474" y="288" class="purpleText small">粗</text><text x="516" y="288" class="ink small">600</text>
+    <rect class="field" x="606" y="256" width="190" height="48" rx="14"/><rect class="darkChip" x="624" y="266" width="28" height="28" rx="8"/><text x="670" y="288" class="purpleText small">text...</text>
+    <text x="848" y="288" class="muted small">优点：语义近；缺点：标签列稍拥挤。</text>
+  </g>
+
+  <!-- C -->
+  <g transform="translate(88 660)">
+    <rect class="panel" width="1260" height="370" rx="34"/>
+    <text x="34" y="58" class="purpleText h">C. 小图标入口</text>
+    <text x="34" y="92" class="muted small">用一个小“调参”图标代表自定义，hover 展示“自定义样式”。</text>
+    <rect class="section" x="34" y="118" width="1192" height="206" rx="22"/>
+    <text x="64" y="158" class="ink body">文字</text>
+    <rect class="soft" x="64" y="188" width="1110" height="104" rx="20"/>
+    <text x="94" y="230" class="dim small">内容</text>
+    <rect class="field" x="190" y="202" width="950" height="48" rx="14"/><text x="218" y="234" class="ink small">Dev Inspector</text>
+    <text x="94" y="274" class="dim small">文字样式</text>
+    <rect class="fieldOn" x="190" y="256" width="52" height="48" rx="14"/>
+    <line class="arrow" x1="205" y1="270" x2="227" y2="270"/><circle cx="213" cy="270" r="4" fill="#7c3aed"/>
+    <line class="arrow" x1="205" y1="286" x2="227" y2="286"/><circle cx="221" cy="286" r="4" fill="#7c3aed"/>
+    <rect class="field" x="258" y="256" width="136" height="48" rx="14"/><text x="290" y="288" class="ink small">15px</text>
+    <rect class="field" x="410" y="256" width="144" height="48" rx="14"/><text x="438" y="288" class="purpleText small">粗</text><text x="480" y="288" class="ink small">600</text>
+    <rect class="field" x="570" y="256" width="190" height="48" rx="14"/><rect class="darkChip" x="588" y="266" width="28" height="28" rx="8"/><text x="634" y="288" class="purpleText small">text...</text>
+    <text x="812" y="288" class="muted small">优点：最省；缺点：新用户不够直觉。</text>
+  </g>
+
+  <!-- D -->
+  <g transform="translate(1452 660)">
+    <rect class="panel" width="1260" height="370" rx="34"/>
+    <text x="34" y="58" class="purpleText h">D. 合并成样式总览</text>
+    <text x="34" y="92" class="muted small">第一项变为“样式总览”，点击弹层切预设 / 自定义。</text>
+    <rect class="section" x="34" y="118" width="1192" height="206" rx="22"/>
+    <text x="64" y="158" class="ink body">文字</text>
+    <rect class="soft" x="64" y="188" width="1110" height="104" rx="20"/>
+    <text x="94" y="230" class="dim small">内容</text>
+    <rect class="field" x="190" y="202" width="950" height="48" rx="14"/><text x="218" y="234" class="ink small">Dev Inspector</text>
+    <text x="94" y="274" class="dim small">文字样式</text>
+    <rect class="fieldOn" x="190" y="256" width="418" height="48" rx="14"/>
+    <text x="216" y="288" class="purpleText small">自定义</text><text x="310" y="288" class="ink small">15px / 600 / text...</text><path class="arrow" d="M570 274l8 8 8-8"/>
+    <text x="642" y="288" class="muted small">优点：很紧凑；缺点：少了直接单项可见性。</text>
+  </g>
+
+  <!-- E -->
+  <g transform="translate(88 1110)">
+    <rect class="panel" width="1260" height="370" rx="34"/>
+    <text x="34" y="58" class="purpleText h">E. 标题右上“模式”按钮</text>
+    <text x="34" y="92" class="muted small">利用你截图里标的空位，像模块级开关：预设 / 自定义。</text>
+    <rect class="section" x="34" y="118" width="1192" height="206" rx="22"/>
+    <text x="64" y="158" class="ink body">文字</text>
+    <rect class="field" x="1030" y="130" width="152" height="46" rx="18"/><text x="1062" y="160" class="muted small">模式</text><text x="1124" y="160" class="purpleText small">自定义</text>
+    <rect class="soft" x="64" y="188" width="1110" height="104" rx="20"/>
+    <text x="94" y="230" class="dim small">内容</text>
+    <rect class="field" x="190" y="202" width="950" height="48" rx="14"/><text x="218" y="234" class="ink small">Dev Inspector</text>
+    <text x="94" y="274" class="dim small">文字样式</text>
+    <rect class="field" x="190" y="256" width="150" height="48" rx="14"/><text x="226" y="288" class="ink small">15px</text>
+    <rect class="field" x="356" y="256" width="150" height="48" rx="14"/><text x="386" y="288" class="purpleText small">粗</text><text x="428" y="288" class="ink small">600</text>
+    <rect class="field" x="522" y="256" width="196" height="48" rx="14"/><rect class="darkChip" x="540" y="266" width="28" height="28" rx="8"/><text x="586" y="288" class="purpleText small">text...</text>
+    <text x="790" y="288" class="muted small">优点：和模块一致；缺点：右上按钮语义要说明。</text>
+  </g>
+
+  <!-- F -->
+  <g transform="translate(1452 1110)">
+    <rect class="panel" width="1260" height="370" rx="34"/>
+    <text x="34" y="58" class="purpleText h">F. 推荐：样式行首压缩 Menu</text>
+    <text x="34" y="92" class="muted small">把“自定义样式”缩为 88px 菜单，文案只显示“自定义”。</text>
+    <rect class="section" x="34" y="118" width="1192" height="206" rx="22"/>
+    <text x="64" y="158" class="ink body">文字</text>
+    <rect class="soft" x="64" y="188" width="1110" height="104" rx="20"/>
+    <text x="94" y="230" class="dim small">内容</text>
+    <rect class="field" x="190" y="202" width="950" height="48" rx="14"/><text x="218" y="234" class="ink small">Dev Inspector</text>
+    <text x="94" y="274" class="dim small">文字样式</text>
+    <rect class="fieldOn" x="190" y="256" width="108" height="48" rx="14"/><text x="212" y="288" class="purpleText small">自定义</text><path class="arrow" d="M266 274l8 8 8-8"/>
+    <rect class="field" x="314" y="256" width="138" height="48" rx="14"/><text x="346" y="288" class="ink small">15px</text>
+    <rect class="field" x="468" y="256" width="146" height="48" rx="14"/><text x="496" y="288" class="purpleText small">粗</text><text x="538" y="288" class="ink small">600</text>
+    <rect class="field" x="630" y="256" width="190" height="48" rx="14"/><rect class="darkChip" x="648" y="266" width="28" height="28" rx="8"/><text x="694" y="288" class="purpleText small">text...</text>
+    <text x="858" y="288" class="muted small">优点：改动小，最接近现有结构。</text>
+  </g>
+
+  <!-- G -->
+  <g transform="translate(88 1560)">
+    <rect class="panel" width="1260" height="370" rx="34"/>
+    <text x="34" y="58" class="purpleText h">G. 预设 / 自定义 Segmented</text>
+    <text x="34" y="92" class="muted small">在文字卡顶部用小分段控件，切换后下方行保持纯参数。</text>
+    <rect class="section" x="34" y="118" width="1192" height="206" rx="22"/>
+    <text x="64" y="158" class="ink body">文字</text>
+    <rect class="softBorder" x="858" y="130" width="324" height="46" rx="18"/>
+    <rect class="fieldOn" x="1014" y="134" width="162" height="38" rx="14"/><text x="1052" y="160" class="purpleText small">自定义</text>
+    <text x="904" y="160" class="muted small">预设</text>
+    <rect class="soft" x="64" y="188" width="1110" height="104" rx="20"/>
+    <text x="94" y="230" class="dim small">内容</text>
+    <rect class="field" x="190" y="202" width="950" height="48" rx="14"/><text x="218" y="234" class="ink small">Dev Inspector</text>
+    <text x="94" y="274" class="dim small">文字样式</text>
+    <rect class="field" x="190" y="256" width="150" height="48" rx="14"/><text x="226" y="288" class="ink small">15px</text>
+    <rect class="field" x="356" y="256" width="150" height="48" rx="14"/><text x="386" y="288" class="purpleText small">粗</text><text x="428" y="288" class="ink small">600</text>
+    <rect class="field" x="522" y="256" width="196" height="48" rx="14"/><rect class="darkChip" x="540" y="266" width="28" height="28" rx="8"/><text x="586" y="288" class="purpleText small">text...</text>
+    <text x="790" y="288" class="muted small">优点：模式清楚；缺点：顶部控件略重。</text>
+  </g>
+
+  <!-- H -->
+  <g transform="translate(1452 1560)">
+    <rect class="panel" width="1260" height="370" rx="34"/>
+    <text x="34" y="58" class="purpleText h">H. 标题内联摘要 + 调整按钮</text>
+    <text x="34" y="92" class="muted small">样式行只展示摘要，点击“调整”进入完整调参浮层。</text>
+    <rect class="section" x="34" y="118" width="1192" height="206" rx="22"/>
+    <text x="64" y="158" class="ink body">文字</text>
+    <text x="970" y="158" class="muted small">自定义 · 15 / 600</text>
+    <rect class="soft" x="64" y="188" width="1110" height="104" rx="20"/>
+    <text x="94" y="230" class="dim small">内容</text>
+    <rect class="field" x="190" y="202" width="950" height="48" rx="14"/><text x="218" y="234" class="ink small">Dev Inspector</text>
+    <text x="94" y="274" class="dim small">文字样式</text>
+    <text x="190" y="286" class="ink small">15px / 600 / </text><text x="320" y="286" class="purpleText small">text·strong</text>
+    <rect class="fieldOn" x="1030" y="254" width="110" height="42" rx="16"/><text x="1062" y="282" class="purpleText small">调整</text>
+    <text x="430" y="286" class="muted small">优点：最干净；缺点：单项调整要进二级。</text>
+  </g>
+
+  <rect class="purpleBg" x="88" y="1984" width="2624" height="72" rx="28"/>
+  <text x="126" y="2029" class="whiteText subtitle">我建议优先落 F：只把“自定义样式”压缩成“自定义”短菜单，功能不丢、改动小、和现有下拉逻辑最稳定。A/E 可以作为之后统一模块级模式入口的方向。</text>
+</svg>

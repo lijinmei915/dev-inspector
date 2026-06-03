@@ -6,7 +6,8 @@
 
 ## 当前状态
 
-- 当前做到：组件模式默认面板和 `Component Capability Registry` 已实现；Button / Icon / Badge / Card 已有组件级白名单属性；Card 已改为真实变体，并开放当前实例的标题/说明文内容插槽，状态标签作为子组件入口可继续选中；面板视觉已收敛为 `发送给AI` 单主按钮；组件命名已按 source selector / display name / attributes 三层记录；`本次修改内容` 已改为跨对象本地草稿篮。
+- 当前做到：组件模式默认面板和 `Component Capability Registry` 已实现；Button / Icon / Badge / Card 已有组件级白名单属性；Card 已改为真实变体，并开放当前实例的标题/说明文可编辑内容，状态标签作为子组件入口可继续选中；面板视觉已收敛为 `发送给AI` 单主按钮；组件命名已按 source selector / display name / attributes 三层记录；`本次修改内容` 已改为跨对象本地草稿篮；Inspector 内部插件区只保留 `组件制作`，产品心智独立、技术上先内置在 DevInspector 包内；当前组件制作 MVP 收口为“普通元素创建组件规格”：底部 `创建组件` 打开轻量抽屉，先确认 `容器`，再按容器展示有限 `用途` 推荐，并联动生成组件名和使用场景后写入 `本次修改内容`；`归类` 已定义为对象职责路径，例如 `页面 / 标题`、`列表 / 功能列表`，不再混入全量已有组件列表，也不维护无限用途枚举；同一归类已有组件时提示 `复用已有组件 / 新建同类组件`；`可改内容` 已改为自动识别字段列表，子组件或固定封装内容以只读项展示；暂不做组件库浏览、多变体、加入已有组件或基于当前组件生成新组件；样式复用统一走 `复制样式` -> `本次修改内容` -> `发送给AI`。
+- 对外接入：`@lijinmei-810/dev-inspector` 和 `@lijinmei-810/dev-inspector-vite` 已补包内 README，明确 runtime panel / Vite plugin 双包组合和 AI 安装提示，避免外部项目误搜 `vite-plugin-dev-inspector` 或 `dev-inspector-vite-plugin`。
 - 当前阻塞：无明确阻塞；Input / Textarea / IconButton 等组合组件尚未进入能力表。
 - 是否可继续：可以继续按能力表补更多组件类型。
 
@@ -36,16 +37,23 @@
 - 产品文档改为主流结构：`docs/product/README.md`、`MRD.md`、`PRD.md`、`INTERACTION_SPEC.md`、`DATA_DICTIONARY.md`、`BUSINESS_RULES.md`；当前产品规则不再承接到 `docs/PRODUCT_PLAN.md`。
 - `AGENTS.md` 和 `docs/DOCUMENTATION.md` 增加 AI 文档读取顺序：先行为规则，再文档路由，再项目状态、产品、设计、决策和交接。
 - `packages/dev-inspector/src/DevInspector.tsx` 调整展示名逻辑：`.task-card` 展示为 `card-task`，`.ghost-button` 展示为 `button`，ghost 作为 variant；`.search-input` 展示为 `input-search`；`发送给AI` 的元素字段使用展示名，真实 selector 单独输出。
+- `packages/dev-inspector/src/DevInspector.tsx` 增加普通元素 `创建组件` 抽屉：默认识别组件名、归类、使用场景和可改内容，确认后记录为 `组件规格`。
+- `packages/dev-inspector/src/plugins/component-maker.ts` 抽出组件制作插件的 context、preview 和 prompt 生成逻辑；DevInspector 只负责收集选中对象上下文并调用该模块。
+- 组件创建任务已从旧二级工作台收口：不再把“归属组件 / 动作 / 创建变体 / 组件库”作为当前 MVP 的主流程；这些方向只作为后续验证项保留。
+- 普通元素组件名建议避免 `h1` / `div` 通用标签，标题类优先使用 `page-title`、`section-title`、`subsection-title` 这类语义名。
+- 已移除独立 `同样式` 入口；样式复用不再走插件区，而是复用现有 `复制样式` 修改篮链路。
+- `docs/product/INTERACTION_SPEC.md`、`docs/design/component-index.md`、`docs/DECISIONS.md`、`PROJECT.md` 记录组件创建抽屉的交互、能力边界和决策原因；`docs/LESSONS.md` 记录组件制作状态同步变量误用的复盘。
 
 ## 风险与待确认
 
-- 当前组件能力和 Card slot 规则仍在 `DevInspector.tsx` 内，后续如果继续增长，应拆出独立 registry 文件。
+- 当前组件能力和 Card 可编辑内容规则仍在 `DevInspector.tsx` 内；组件制作 prompt 已先拆到 `plugins/component-maker.ts`，后续如果继续增长，应继续拆 `Component Capability Registry`。
 - 组件识别规则目前覆盖 Button、Card、Icon、Control、Badge，更多业务组件需要按真实类名逐步补充。
 - naming adapter 已归档为后续方向，当前阶段明确不做外部配置导入和 workspace-aware 源码扫描。
 - 业务对象 / 销货号 / SKU 等规则目前只是建立落档入口，没有登记具体规则；后续必须有 PRD、代码 schema、接口、导入模板、页面行为或用户确认后再写入。
 
 ## 下一步
 
-1. 补 Input / Textarea / IconButton 的组件能力。
-2. 视体量把 `Component Capability Registry` 从 `DevInspector.tsx` 拆出独立模块；naming adapter 暂不实现。
-3. 校准组件模式下 `发送给AI` 的任务文本和定位字段。
+1. 继续验证普通元素 `创建组件` 抽屉：打开、默认命名、加入 `本次修改内容` 和 `发送给AI` 是否稳定。
+2. 补 Input / Textarea / IconButton 的组件能力。
+3. 视体量把 `Component Capability Registry` 从 `DevInspector.tsx` 拆出独立模块；naming adapter 暂不实现。
+4. 校准组件模式下 `发送给AI` 的任务文本和定位字段。

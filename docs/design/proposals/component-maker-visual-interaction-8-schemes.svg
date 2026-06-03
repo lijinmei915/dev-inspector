@@ -1,0 +1,295 @@
+<svg width="2800" height="1760" viewBox="0 0 2800 1760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="softShadow" x="-12%" y="-12%" width="124%" height="128%">
+      <feDropShadow dx="0" dy="18" stdDeviation="26" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <linearGradient id="pageBg" x1="0" y1="0" x2="2800" y2="1760" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#eef2ff"/>
+    </linearGradient>
+    <style>
+      .title { font: 800 48px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #0f172a; letter-spacing: 0; }
+      .subtitle { font: 500 24px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #64748b; letter-spacing: 0; }
+      .cardTitle { font: 800 30px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #0f172a; letter-spacing: 0; }
+      .cardMeta { font: 700 20px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #7c3aed; letter-spacing: 0; }
+      .label { font: 700 22px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #64748b; letter-spacing: 0; }
+      .text { font: 700 23px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #334155; letter-spacing: 0; }
+      .textStrong { font: 800 25px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #0f172a; letter-spacing: 0; }
+      .textSmall { font: 600 19px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #64748b; letter-spacing: 0; }
+      .textTiny { font: 700 17px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #94a3b8; letter-spacing: 0; }
+      .chip { font: 800 22px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #7c3aed; letter-spacing: 0; }
+      .chipDark { font: 800 22px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #0f172a; letter-spacing: 0; }
+      .button { font: 800 22px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #fff; letter-spacing: 0; }
+      .buttonGhost { font: 800 22px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #334155; letter-spacing: 0; }
+    </style>
+  </defs>
+
+  <rect width="2800" height="1760" fill="url(#pageBg)"/>
+  <text x="72" y="78" class="title">组件制作交互方案 · 8 选 1</text>
+  <text x="72" y="118" class="subtitle">目标：少填表、多选择、有预览；仍然把组件规格 / 新变体记录到“本次修改内容”，最后统一发送给 AI。</text>
+
+  <!-- A -->
+  <g transform="translate(60 160)" filter="url(#softShadow)">
+    <rect width="640" height="720" rx="28" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="30" y="48" class="cardMeta">A</text>
+    <text x="72" y="49" class="cardTitle">向导式三步</text>
+    <rect x="30" y="82" width="580" height="58" rx="20" fill="#f5f3ff"/>
+    <rect x="42" y="94" width="156" height="34" rx="17" fill="#7c3aed"/>
+    <text x="66" y="118" class="button" font-size="19">选对象</text>
+    <text x="228" y="118" class="chipDark">定义槽位</text>
+    <text x="380" y="118" class="chipDark">创建变体</text>
+    <text x="198" y="118" class="textTiny">→</text>
+    <text x="354" y="118" class="textTiny">→</text>
+    <rect x="36" y="170" width="568" height="128" rx="20" fill="#f8fafc"/>
+    <text x="60" y="210" class="label">当前对象</text>
+    <text x="60" y="252" class="textStrong">页面标题</text>
+    <rect x="330" y="198" width="238" height="58" rx="16" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="352" y="235" class="chip">沉淀为组件</text>
+    <rect x="36" y="324" width="568" height="210" rx="20" fill="#f8fafc"/>
+    <text x="60" y="366" class="label">组件名</text>
+    <rect x="168" y="336" width="396" height="54" rx="14" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="190" y="371" class="textStrong">page-title</text>
+    <text x="60" y="436" class="label">槽位</text>
+    <rect x="168" y="406" width="126" height="52" rx="14" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="196" y="440" class="chipDark">内容</text>
+    <rect x="308" y="406" width="126" height="52" rx="14" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="335" y="440" class="chipDark">图标</text>
+    <rect x="448" y="406" width="116" height="52" rx="14" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2"/>
+    <text x="476" y="440" class="chip">+ 添加</text>
+    <text x="60" y="506" class="label">变体</text>
+    <rect x="168" y="476" width="112" height="52" rx="14" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2"/>
+    <text x="206" y="510" class="chip">XL</text>
+    <rect x="292" y="476" width="132" height="52" rx="14" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="320" y="510" class="chipDark">default</text>
+    <rect x="36" y="574" width="568" height="82" rx="20" fill="#7c3aed"/>
+    <text x="222" y="626" class="button">记录到本次修改</text>
+    <text x="40" y="690" class="textSmall">适合首次沉淀：按步骤降低认知负担。</text>
+  </g>
+
+  <!-- B -->
+  <g transform="translate(736 160)" filter="url(#softShadow)">
+    <rect width="640" height="720" rx="28" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="30" y="48" class="cardMeta">B</text>
+    <text x="72" y="49" class="cardTitle">画布标注式</text>
+    <rect x="34" y="86" width="572" height="300" rx="24" fill="#f8fafc"/>
+    <rect x="76" y="128" width="392" height="136" rx="16" fill="white" stroke="#7c3aed" stroke-width="4"/>
+    <rect x="96" y="154" width="110" height="34" rx="12" fill="#dbeafe"/>
+    <text x="115" y="177" class="textSmall" fill="#2563eb">进行中</text>
+    <text x="96" y="225" class="textStrong">任务标题 1</text>
+    <line x1="468" y1="160" x2="552" y2="118" stroke="#7c3aed" stroke-width="3"/>
+    <line x1="468" y1="224" x2="552" y2="244" stroke="#7c3aed" stroke-width="3"/>
+    <rect x="430" y="142" width="58" height="38" rx="18" fill="#7c3aed"/>
+    <text x="448" y="168" class="button" font-size="17">槽</text>
+    <rect x="430" y="206" width="58" height="38" rx="18" fill="#7c3aed"/>
+    <text x="448" y="232" class="button" font-size="17">文</text>
+    <rect x="34" y="414" width="572" height="194" rx="24" fill="#f8fafc"/>
+    <text x="58" y="456" class="label">识别到的可编辑槽位</text>
+    <rect x="58" y="478" width="250" height="50" rx="14" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="80" y="511" class="text">标题</text>
+    <rect x="226" y="486" width="58" height="34" rx="17" fill="#f5f3ff"/>
+    <text x="242" y="510" class="chip" font-size="18">开</text>
+    <rect x="326" y="478" width="250" height="50" rx="14" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="348" y="511" class="text">状态标签</text>
+    <rect x="494" y="486" width="58" height="34" rx="17" fill="#eef2ff"/>
+    <text x="510" y="510" class="textSmall">读</text>
+    <rect x="58" y="542" width="518" height="50" rx="14" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="80" y="575" class="text">说明文</text>
+    <rect x="494" y="550" width="58" height="34" rx="17" fill="#f5f3ff"/>
+    <text x="510" y="574" class="chip" font-size="18">开</text>
+    <text x="40" y="690" class="textSmall">适合从视觉上点选哪些部分成为组件 API。</text>
+  </g>
+
+  <!-- C -->
+  <g transform="translate(1412 160)" filter="url(#softShadow)">
+    <rect width="640" height="720" rx="28" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="30" y="48" class="cardMeta">C</text>
+    <text x="72" y="49" class="cardTitle">属性矩阵式</text>
+    <rect x="34" y="86" width="572" height="392" rx="24" fill="#f8fafc"/>
+    <text x="60" y="130" class="label">维度</text>
+    <text x="210" y="130" class="label">默认</text>
+    <text x="350" y="130" class="label">新增</text>
+    <text x="492" y="130" class="label">差异</text>
+    <line x1="54" y1="150" x2="586" y2="150" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="60" y="204" class="textStrong">状态</text>
+    <rect x="190" y="170" width="116" height="52" rx="14" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="222" y="204" class="text">默认</text>
+    <rect x="330" y="170" width="118" height="52" rx="14" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2"/>
+    <text x="360" y="204" class="chip">危险</text>
+    <text x="492" y="202" class="chip">+色</text>
+    <text x="60" y="284" class="textStrong">尺寸</text>
+    <rect x="190" y="250" width="116" height="52" rx="14" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="234" y="284" class="text">M</text>
+    <rect x="330" y="250" width="118" height="52" rx="14" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2"/>
+    <text x="376" y="284" class="chip">XL</text>
+    <text x="492" y="282" class="chip">+8</text>
+    <text x="60" y="364" class="textStrong">外观</text>
+    <rect x="190" y="330" width="116" height="52" rx="14" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="222" y="364" class="text">普通</text>
+    <rect x="330" y="330" width="118" height="52" rx="14" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2"/>
+    <text x="360" y="364" class="chip">强调</text>
+    <text x="492" y="362" class="chip">+影</text>
+    <rect x="54" y="404" width="532" height="50" rx="14" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="74" y="437" class="textSmall">批量创建：danger / disabled / XL / emphasis</text>
+    <rect x="34" y="518" width="572" height="86" rx="22" fill="#7c3aed"/>
+    <text x="214" y="571" class="button">生成变体任务</text>
+    <text x="40" y="690" class="textSmall">适合一次补齐状态、尺寸、外观等系列变体。</text>
+  </g>
+
+  <!-- D -->
+  <g transform="translate(2088 160)" filter="url(#softShadow)">
+    <rect width="640" height="720" rx="28" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="30" y="48" class="cardMeta">D</text>
+    <text x="72" y="49" class="cardTitle">变量触点式</text>
+    <rect x="34" y="86" width="572" height="438" rx="24" fill="#f8fafc"/>
+    <text x="58" y="130" class="label">样式</text>
+    <rect x="134" y="100" width="384" height="58" rx="16" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <rect x="154" y="114" width="32" height="32" rx="8" fill="#0f172a"/>
+    <text x="204" y="137" class="chip">text·strong</text>
+    <g transform="translate(532 112)">
+      <rect width="40" height="40" rx="12" fill="#fff" stroke="#e2e8f0" stroke-width="2"/>
+      <circle cx="20" cy="20" r="4" fill="#7c3aed"/>
+      <circle cx="10" cy="10" r="3" fill="#7c3aed"/>
+      <circle cx="30" cy="10" r="3" fill="#7c3aed"/>
+      <circle cx="10" cy="30" r="3" fill="#7c3aed"/>
+      <circle cx="30" cy="30" r="3" fill="#7c3aed"/>
+    </g>
+    <text x="58" y="214" class="label">圆角</text>
+    <rect x="134" y="184" width="160" height="58" rx="16" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="158" y="221" class="textStrong">8</text>
+    <text x="208" y="221" class="textSmall">px</text>
+    <g transform="translate(312 193)">
+      <rect width="40" height="40" rx="12" fill="#fff" stroke="#e2e8f0" stroke-width="2"/>
+      <path d="M13 20h14M20 13v14" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <rect x="58" y="284" width="524" height="156" rx="20" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="82" y="326" class="textStrong">Apply variable</text>
+    <text x="82" y="362" class="textSmall">可选 token 时展示触点，无 token 时不显示</text>
+    <rect x="82" y="386" width="176" height="38" rx="14" fill="#f5f3ff"/>
+    <text x="104" y="412" class="chip" font-size="18">创建组件变量</text>
+    <rect x="34" y="560" width="572" height="56" rx="18" fill="#7c3aed"/>
+    <text x="226" y="596" class="button">记录选择</text>
+    <text x="40" y="690" class="textSmall">适合把“自定义”逐步替换为 token / 变量。</text>
+  </g>
+
+  <!-- E -->
+  <g transform="translate(60 916)" filter="url(#softShadow)">
+    <rect width="640" height="720" rx="28" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="30" y="48" class="cardMeta">E</text>
+    <text x="72" y="49" class="cardTitle">卡片蓝图式</text>
+    <rect x="36" y="86" width="398" height="500" rx="26" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="64" y="130" class="label">Component Blueprint</text>
+    <rect x="74" y="164" width="320" height="70" rx="18" fill="white" stroke="#c4b5fd" stroke-width="3"/>
+    <text x="102" y="208" class="textStrong">Header</text>
+    <text x="300" y="208" class="chip">slot</text>
+    <rect x="74" y="254" width="320" height="112" rx="18" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="102" y="302" class="textStrong">Content</text>
+    <text x="102" y="334" class="textSmall">标题 / 说明文</text>
+    <rect x="74" y="386" width="150" height="64" rx="18" fill="white" stroke="#c4b5fd" stroke-width="3"/>
+    <text x="102" y="426" class="textStrong">Badge</text>
+    <rect x="244" y="386" width="150" height="64" rx="18" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="272" y="426" class="textStrong">Action</text>
+    <rect x="74" y="470" width="320" height="70" rx="18" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2"/>
+    <text x="154" y="514" class="chip">+ 新增槽位</text>
+    <rect x="462" y="112" width="132" height="70" rx="20" fill="#7c3aed"/>
+    <text x="492" y="156" class="button">槽位</text>
+    <rect x="462" y="202" width="132" height="70" rx="20" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="492" y="246" class="buttonGhost">变体</text>
+    <rect x="462" y="292" width="132" height="70" rx="20" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="492" y="336" class="buttonGhost">规则</text>
+    <text x="40" y="690" class="textSmall">适合 Card / Form 这类结构组件，可视化理解槽位。</text>
+  </g>
+
+  <!-- F -->
+  <g transform="translate(736 916)" filter="url(#softShadow)">
+    <rect width="640" height="720" rx="28" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="30" y="48" class="cardMeta">F</text>
+    <text x="72" y="49" class="cardTitle">自然语言 + 结构预览</text>
+    <rect x="34" y="86" width="572" height="116" rx="24" fill="#f8fafc"/>
+    <text x="58" y="128" class="label">一句话目标</text>
+    <rect x="58" y="146" width="510" height="40" rx="14" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="78" y="173" class="textSmall">把当前标题做成组件，并新增 XL 变体</text>
+    <rect x="34" y="232" width="572" height="276" rx="24" fill="#f8fafc"/>
+    <text x="58" y="274" class="label">AI 解析预览</text>
+    <rect x="58" y="296" width="220" height="52" rx="16" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="80" y="330" class="text">组件名</text>
+    <text x="168" y="330" class="chipDark">page-title</text>
+    <rect x="298" y="296" width="270" height="52" rx="16" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="320" y="330" class="text">槽位</text>
+    <text x="384" y="330" class="chipDark">内容</text>
+    <rect x="58" y="366" width="220" height="52" rx="16" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2"/>
+    <text x="80" y="400" class="text">新变体</text>
+    <text x="176" y="400" class="chip">XL</text>
+    <rect x="298" y="366" width="270" height="52" rx="16" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="320" y="400" class="text">基于</text>
+    <text x="384" y="400" class="chipDark">当前样式</text>
+    <rect x="58" y="436" width="510" height="48" rx="16" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="80" y="468" class="textSmall">只新增 API / token 映射 / 样式规则</text>
+    <rect x="34" y="548" width="270" height="64" rx="18" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="106" y="590" class="buttonGhost">继续调整</text>
+    <rect x="322" y="548" width="284" height="64" rx="18" fill="#7c3aed"/>
+    <text x="412" y="590" class="button">记录任务</text>
+    <text x="40" y="690" class="textSmall">适合快速表达意图，再用结构化 chips 做确认。</text>
+  </g>
+
+  <!-- G -->
+  <g transform="translate(1412 916)" filter="url(#softShadow)">
+    <rect width="640" height="720" rx="28" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="30" y="48" class="cardMeta">G</text>
+    <text x="72" y="49" class="cardTitle">差异对比式</text>
+    <rect x="34" y="88" width="270" height="360" rx="24" fill="#f8fafc"/>
+    <text x="58" y="132" class="label">当前样式</text>
+    <rect x="58" y="164" width="222" height="84" rx="18" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="84" y="202" class="textStrong">default</text>
+    <text x="84" y="230" class="textSmall">17 / 700 / strong</text>
+    <rect x="58" y="272" width="222" height="84" rx="18" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="84" y="310" class="textStrong">普通容器</text>
+    <text x="84" y="338" class="textSmall">surface / 8 / none</text>
+    <rect x="336" y="88" width="270" height="360" rx="24" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2"/>
+    <text x="360" y="132" class="label" fill="#7c3aed">新变体</text>
+    <rect x="360" y="164" width="222" height="84" rx="18" fill="white" stroke="#c4b5fd" stroke-width="2"/>
+    <text x="386" y="202" class="chip">emphasis</text>
+    <text x="386" y="230" class="textSmall">20 / 800 / brand</text>
+    <rect x="360" y="272" width="222" height="84" rx="18" fill="white" stroke="#c4b5fd" stroke-width="2"/>
+    <text x="386" y="310" class="chip">强调容器</text>
+    <text x="386" y="338" class="textSmall">brand-soft / 12 / card</text>
+    <text x="294" y="252" class="chip">→</text>
+    <rect x="58" y="482" width="524" height="72" rx="20" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="82" y="526" class="text">差异：</text>
+    <text x="150" y="526" class="chip">+字号 +色彩 +圆角 +阴影</text>
+    <rect x="58" y="584" width="524" height="62" rx="18" fill="#7c3aed"/>
+    <text x="230" y="624" class="button">记录新变体</text>
+    <text x="40" y="690" class="textSmall">适合确认“基于当前样式，哪里变了”。</text>
+  </g>
+
+  <!-- H -->
+  <g transform="translate(2088 916)" filter="url(#softShadow)">
+    <rect width="640" height="720" rx="28" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="30" y="48" class="cardMeta">H</text>
+    <text x="72" y="49" class="cardTitle">组件库面板式</text>
+    <rect x="34" y="86" width="194" height="520" rx="24" fill="#f8fafc"/>
+    <text x="58" y="128" class="label">组件</text>
+    <rect x="54" y="154" width="154" height="52" rx="16" fill="#7c3aed"/>
+    <text x="92" y="188" class="button">Card</text>
+    <rect x="54" y="222" width="154" height="52" rx="16" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="86" y="256" class="buttonGhost">Badge</text>
+    <rect x="54" y="290" width="154" height="52" rx="16" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="86" y="324" class="buttonGhost">Button</text>
+    <rect x="54" y="358" width="154" height="52" rx="16" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="92" y="392" class="buttonGhost">Input</text>
+    <rect x="252" y="86" width="354" height="520" rx="24" fill="#f8fafc"/>
+    <text x="278" y="128" class="label">card-task</text>
+    <rect x="278" y="154" width="302" height="92" rx="18" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="304" y="192" class="textStrong">默认</text>
+    <text x="304" y="222" class="textSmall">compact / default / soft</text>
+    <rect x="278" y="266" width="302" height="92" rx="18" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2"/>
+    <text x="304" y="304" class="chip">新增：浮起</text>
+    <text x="304" y="334" class="textSmall">elevated / hover</text>
+    <rect x="278" y="378" width="142" height="70" rx="18" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="316" y="422" class="text">S</text>
+    <rect x="438" y="378" width="142" height="70" rx="18" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2"/>
+    <text x="492" y="422" class="chip">M</text>
+    <rect x="278" y="474" width="302" height="58" rx="18" fill="#7c3aed"/>
+    <text x="374" y="512" class="button">记录组件任务</text>
+    <text x="40" y="690" class="textSmall">适合从“组件库视角”管理族、状态和规格。</text>
+  </g>
+</svg>

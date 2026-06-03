@@ -1,6 +1,6 @@
 {
   "name": "@lijinmei-810/dev-inspector",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "可视化 CSS 检查与编辑工具（React 组件）",
   "license": "MIT",
   "type": "module",

@@ -1,0 +1,166 @@
+<svg width="2800" height="1900" viewBox="0 0 2800 1900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="panelShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .bg { fill: #f8fafc; }
+      .panel { fill: #fff; stroke: #e2e8f0; stroke-width: 2; filter: url(#panelShadow); }
+      .soft { fill: #f8fafc; }
+      .soft2 { fill: #f4f0ff; }
+      .field { fill: #fff; stroke: #e2e8f0; stroke-width: 2; }
+      .fieldFocus { fill: #f5f3ff; stroke: #c4b5fd; stroke-width: 2.4; }
+      .line { stroke: #e2e8f0; stroke-width: 2; }
+      .ink { fill: #0f172a; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .muted { fill: #64748b; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .dim { fill: #94a3b8; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .purple { fill: #7c3aed; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .title { font-size: 44px; font-weight: 850; letter-spacing: 0; }
+      .sub { font-size: 24px; font-weight: 600; letter-spacing: 0; }
+      .h { font-size: 30px; font-weight: 850; letter-spacing: 0; }
+      .body { font-size: 24px; font-weight: 650; letter-spacing: 0; }
+      .small { font-size: 20px; font-weight: 650; letter-spacing: 0; }
+      .tiny { font-size: 18px; font-weight: 650; letter-spacing: 0; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="2800" height="1900"/>
+  <text x="88" y="86" class="ink title">阴影区合并方案：8 个更紧凑的方向</text>
+  <text x="88" y="128" class="muted sub">目标：折叠态减少重复，展开态保留 token / 自定义 / 数值步进 / 颜色选择 / live apply。</text>
+
+  <!-- A -->
+  <g transform="translate(88 190)">
+    <rect class="panel" width="1260" height="350" rx="34"/>
+    <text x="36" y="58" class="purple h">A. 单行概览 + 下方参数</text>
+    <text x="36" y="92" class="muted small">保留当前结构，但把右侧摘要并入一行，只在自定义时展开参数。</text>
+    <rect class="soft" x="36" y="122" width="1188" height="82" rx="20"/>
+    <text x="70" y="174" class="ink body">阴影</text>
+    <rect class="fieldFocus" x="174" y="140" width="250" height="48" rx="12"/>
+    <text x="208" y="172" class="ink body">自定义</text>
+    <path d="M380 158l12 12 12-12" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect class="field" x="448" y="140" width="58" height="48" rx="14"/>
+    <text x="532" y="160" class="muted small mono">0 / 0 / 0 / 0</text>
+    <text x="532" y="188" class="dim tiny mono">rgba(15,23,42,0)</text>
+    <rect class="soft" x="36" y="224" width="1188" height="82" rx="20"/>
+    <text x="72" y="276" class="muted body">X</text><rect class="field" x="112" y="242" width="150" height="48" rx="12"/><text x="150" y="274" class="ink body mono">0px</text>
+    <text x="300" y="276" class="muted body">Y</text><rect class="field" x="340" y="242" width="150" height="48" rx="12"/><text x="378" y="274" class="ink body mono">0px</text>
+    <text x="528" y="276" class="muted body">模糊</text><rect class="field" x="602" y="242" width="150" height="48" rx="12"/><text x="640" y="274" class="ink body mono">0px</text>
+    <text x="790" y="276" class="muted body">扩散</text><rect class="field" x="864" y="242" width="150" height="48" rx="12"/><text x="902" y="274" class="ink body mono">0px</text>
+    <rect class="field" x="1040" y="242" width="148" height="48" rx="12"/><rect x="1060" y="254" width="26" height="26" rx="7" fill="#fff" stroke="#e2e8f0" stroke-width="2"/><text x="1100" y="274" class="muted small">0%</text>
+  </g>
+
+  <!-- B -->
+  <g transform="translate(1452 190)">
+    <rect class="panel" width="1260" height="350" rx="34"/>
+    <text x="36" y="58" class="purple h">B. 预览合进选择器</text>
+    <text x="36" y="92" class="muted small">把预览方块、名称和值都放进一个大选择器，右侧不再重复展示。</text>
+    <rect class="soft" x="36" y="122" width="1188" height="82" rx="20"/>
+    <text x="70" y="174" class="ink body">阴影</text>
+    <rect class="fieldFocus" x="174" y="134" width="710" height="58" rx="16"/>
+    <rect x="198" y="148" width="30" height="30" rx="9" fill="#fff" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="250" y="160" class="ink body">自定义</text>
+    <text x="250" y="188" class="dim tiny mono">0px 0px 0px 0px rgba(15,23,42,0)</text>
+    <path d="M838 158l12 12 12-12" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="920" y="174" class="dim small">单控件承载选择 + 预览 + 摘要</text>
+    <rect class="soft" x="174" y="224" width="710" height="78" rx="18"/>
+    <text x="200" y="272" class="muted body">展开后：X / Y / 模糊 / 扩散 / 颜色</text>
+  </g>
+
+  <!-- C -->
+  <g transform="translate(88 590)">
+    <rect class="panel" width="1260" height="350" rx="34"/>
+    <text x="36" y="58" class="purple h">C. 状态胶囊 + 参数 chips</text>
+    <text x="36" y="92" class="muted small">折叠时只是一颗状态胶囊；自定义时参数以 chips 形式横向展示。</text>
+    <rect class="soft" x="36" y="122" width="1188" height="82" rx="20"/>
+    <text x="70" y="174" class="ink body">阴影</text>
+    <rect class="fieldFocus" x="174" y="140" width="222" height="48" rx="24"/>
+    <text x="220" y="172" class="ink body">自定义</text>
+    <text x="432" y="172" class="muted small">#0f172a / 0%</text>
+    <rect class="field" x="646" y="140" width="104" height="48" rx="24"/><text x="680" y="172" class="muted small mono">X 0</text>
+    <rect class="field" x="764" y="140" width="104" height="48" rx="24"/><text x="798" y="172" class="muted small mono">Y 0</text>
+    <rect class="field" x="882" y="140" width="140" height="48" rx="24"/><text x="914" y="172" class="muted small">模糊 0</text>
+    <rect class="field" x="1036" y="140" width="140" height="48" rx="24"/><text x="1068" y="172" class="muted small">扩散 0</text>
+    <text x="174" y="252" class="dim small">适合：少量参数快速读；不适合：频繁键盘输入。</text>
+  </g>
+
+  <!-- D -->
+  <g transform="translate(1452 590)">
+    <rect class="panel" width="1260" height="350" rx="34"/>
+    <text x="36" y="58" class="purple h">D. 一行属性表</text>
+    <text x="36" y="92" class="muted small">把下方 5 个字段直接压成一行属性表，减少上下分区。</text>
+    <rect class="soft" x="36" y="122" width="1188" height="108" rx="20"/>
+    <text x="70" y="184" class="ink body">阴影</text>
+    <rect class="fieldFocus" x="174" y="146" width="200" height="56" rx="14"/><text x="222" y="181" class="ink body">自定义</text>
+    <text x="412" y="160" class="muted tiny">X</text><rect class="field" x="438" y="142" width="112" height="48" rx="12"/><text x="470" y="174" class="ink small mono">0</text>
+    <text x="582" y="160" class="muted tiny">Y</text><rect class="field" x="608" y="142" width="112" height="48" rx="12"/><text x="640" y="174" class="ink small mono">0</text>
+    <text x="752" y="160" class="muted tiny">B</text><rect class="field" x="778" y="142" width="112" height="48" rx="12"/><text x="810" y="174" class="ink small mono">0</text>
+    <text x="922" y="160" class="muted tiny">S</text><rect class="field" x="948" y="142" width="112" height="48" rx="12"/><text x="980" y="174" class="ink small mono">0</text>
+    <rect class="field" x="1080" y="142" width="104" height="48" rx="12"/><text x="1110" y="174" class="muted small">0%</text>
+    <text x="174" y="284" class="dim small">适合：极致紧凑；需要 hover tooltip 解释 B=模糊、S=扩散。</text>
+  </g>
+
+  <!-- E -->
+  <g transform="translate(88 990)">
+    <rect class="panel" width="1260" height="350" rx="34"/>
+    <text x="36" y="58" class="purple h">E. 总览行 + 编辑按钮</text>
+    <text x="36" y="92" class="muted small">默认只读一行，点击“编辑”后展开完整参数，最干净。</text>
+    <rect class="soft" x="36" y="122" width="1188" height="82" rx="20"/>
+    <text x="70" y="174" class="ink body">阴影</text>
+    <rect x="174" y="143" width="36" height="36" rx="10" fill="#fff" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="232" y="160" class="ink body">自定义</text>
+    <text x="232" y="188" class="dim tiny mono">0px 0px 0px 0px rgba(15,23,42,0)</text>
+    <rect class="fieldFocus" x="1048" y="140" width="126" height="48" rx="24"/>
+    <text x="1086" y="172" class="purple body">编辑</text>
+    <rect class="soft2" x="36" y="230" width="1188" height="58" rx="16"/>
+    <text x="70" y="267" class="muted small">展开态沿用当前参数面板；折叠态没有任何重复文案。</text>
+  </g>
+
+  <!-- F -->
+  <g transform="translate(1452 990)">
+    <rect class="panel" width="1260" height="350" rx="34"/>
+    <text x="36" y="58" class="purple h">F. 选择器即摘要</text>
+    <text x="36" y="92" class="muted small">选择器本身显示“名称 + 关键值”，展开区只负责输入，不再另放摘要块。</text>
+    <rect class="soft" x="36" y="122" width="1188" height="82" rx="20"/>
+    <text x="70" y="174" class="ink body">阴影</text>
+    <rect class="fieldFocus" x="174" y="136" width="820" height="56" rx="16"/>
+    <text x="208" y="170" class="ink body">自定义</text>
+    <text x="342" y="170" class="muted small mono">0 / 0 / 0 / 0 · #0f172a 0%</text>
+    <rect x="922" y="150" width="28" height="28" rx="8" fill="#fff" stroke="#e2e8f0" stroke-width="2"/>
+    <path d="M962 158l12 12 12-12" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect class="soft" x="174" y="224" width="820" height="76" rx="18"/>
+    <text x="208" y="272" class="muted small">X 0　Y 0　模糊 0　扩散 0　颜色 #0f172a / 0%</text>
+  </g>
+
+  <!-- G -->
+  <g transform="translate(88 1390)">
+    <rect class="panel" width="1260" height="350" rx="34"/>
+    <text x="36" y="58" class="purple h">G. Token / 自定义双层切换</text>
+    <text x="36" y="92" class="muted small">第一层只选 token 或自定义；第二层才出现值，逻辑更像文字样式。</text>
+    <rect class="soft" x="36" y="122" width="1188" height="82" rx="20"/>
+    <text x="70" y="174" class="ink body">阴影</text>
+    <rect class="field" x="174" y="140" width="240" height="48" rx="12"/><text x="222" y="172" class="dim body">柔和</text>
+    <rect class="fieldFocus" x="426" y="140" width="240" height="48" rx="12"/><text x="476" y="172" class="purple body">自定义</text>
+    <text x="700" y="172" class="muted small mono">0px 0px 0px 0px</text>
+    <rect class="soft" x="174" y="228" width="820" height="62" rx="16"/>
+    <text x="208" y="268" class="muted small">进入自定义后出现完整输入；token 状态只读，不露参数输入。</text>
+  </g>
+
+  <!-- H -->
+  <g transform="translate(1452 1390)">
+    <rect class="panel" width="1260" height="350" rx="34"/>
+    <text x="36" y="58" class="purple h">H. 推荐方案：摘要合并到选择器</text>
+    <text x="36" y="92" class="muted small">最平衡：折叠态一行读完；展开态沿用参数输入；没有重复“自定义”。</text>
+    <rect class="soft" x="36" y="122" width="1188" height="82" rx="20"/>
+    <text x="70" y="174" class="ink body">阴影</text>
+    <rect class="fieldFocus" x="174" y="136" width="870" height="56" rx="16"/>
+    <rect x="198" y="150" width="28" height="28" rx="8" fill="#fff" stroke="#e2e8f0" stroke-width="2"/>
+    <text x="246" y="170" class="ink body">自定义</text>
+    <text x="372" y="170" class="muted small mono">0 / 0 / 0 / 0 · rgba(15,23,42,0)</text>
+    <path d="M1002 158l12 12 12-12" stroke="#94a3b8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect class="soft2" x="174" y="224" width="870" height="76" rx="18"/>
+    <text x="208" y="272" class="purple small">保留现有输入区，只移除右侧重复摘要块。</text>
+  </g>
+
+  <text x="88" y="1838" class="muted sub">建议优先看 H：改动最小、语义最清楚，也最不容易丢现有功能。</text>
+</svg>
