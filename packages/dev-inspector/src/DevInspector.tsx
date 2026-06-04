@@ -220,6 +220,29 @@ type StructuralChildGroup = {
   }>;
 };
 
+type PageShellSection = {
+  key: string;
+  label: string;
+  kind: string;
+  selector: string;
+  element: Element;
+};
+
+type CollectionLayoutItem = {
+  key: string;
+  label: string;
+  selector: string;
+  element: Element;
+};
+
+type CollectionLayoutInfo = {
+  layoutLabel: string;
+  itemLabel: string;
+  itemCount: number;
+  totalCount: number;
+  items: CollectionLayoutItem[];
+};
+
 const COMPONENT_TYPE_GROUP_LABELS: Record<ComponentTypeGroup, string> = {
   text: '文本',
   action: '操作',
@@ -631,6 +654,8 @@ const TEXT_ONLY_TAGS = new Set([
 
 const TEXT_SEMANTIC_CLASS_RE = /(^|[-_])(caption|copy|desc|description|eyebrow|heading|label|subtitle|text|title)([-_]|$)/i;
 const STRUCTURAL_CONTAINER_CLASS_RE = /(^|[-_])(area|block|card|container|content|group|grid|item|layout|list|panel|row|section|shell|stack|zone)([-_]|$)/i;
+const PAGE_SHELL_CLASS_RE = /(^|[-_])(app|page|root|screen|shell|workspace)([-_]|$)/i;
+const COLLECTION_LAYOUT_CLASS_RE = /(^|[-_])(collection|columns|deck|feed|grid|list|matrix|rail|row|stack|track)([-_]|$)/i;
 const TEXT_GROUP_EXCLUDED_SELECTOR = [
   'button',
   'input',
@@ -692,14 +717,61 @@ function isTextOnlyTargetElement(el: Element): boolean {
   });
 }
 
+function isSimpleTextGroupTargetElement(el: Element): boolean {
+  if (getInspectorComponentMeta(el)) return false;
+  if (el.matches(TEXT_GROUP_EXCLUDED_SELECTOR)) return false;
+
+  const tag = el.tagName.toLowerCase();
+  if (!STRUCTURAL_CONTAINER_TAGS.has(tag) && !hasStructuralContainerClass(el)) return false;
+
+  const children = Array.from(el.children).filter(isInspectableChildElement);
+  if (children.length < 2 || children.length > TEXT_GROUP_MAX_CHILDREN) return false;
+  if (children.some(child => child.matches(TEXT_GROUP_EXCLUDED_SELECTOR) || getInspectorComponentMeta(child))) return false;
+
+  return children.every(child => {
+    const childTag = child.tagName.toLowerCase();
+    return TEXT_ONLY_TAGS.has(childTag) || hasTextSemanticClass(child) || isTextOnlyTargetElement(child);
+  });
+}
+
 function isStructuralContainerTargetElement(el: Element): boolean {
   if (getInspectorComponentMeta(el)) return false;
   if (isTextOnlyTargetElement(el)) return false;
+  if (isSimpleTextGroupTargetElement(el)) return false;
 
   const tag = el.tagName.toLowerCase();
   if (!STRUCTURAL_CONTAINER_TAGS.has(tag) && !hasStructuralContainerClass(el)) return false;
 
   return el.children.length > 0;
+}
+
+function isNearAppRoot(el: Element): boolean {
+  const parent = el.parentElement;
+  if (!parent) return false;
+  if (parent === document.body) return true;
+  if (parent.id === 'root') return true;
+  if (parent.parentElement === document.body && parent.children.length === 1) return true;
+  return false;
+}
+
+function isPageShellTargetElement(el: Element): boolean {
+  if (getInspectorComponentMeta(el)) return false;
+  if (isTextOnlyTargetElement(el)) return false;
+  if (el === document.documentElement || el === document.body) return false;
+
+  const tag = el.tagName.toLowerCase();
+  const children = Array.from(el.children).filter(isInspectableChildElement);
+  if (children.length < 2) return false;
+
+  const rect = el.getBoundingClientRect();
+  const coversPageArea = rect.width >= window.innerWidth * 0.55 && rect.height >= window.innerHeight * 0.45;
+  const hasPageShellClass = getClasses(el).some(className =>
+    !isStateClass(className) && PAGE_SHELL_CLASS_RE.test(className)
+  );
+
+  if (tag === 'main' && coversPageArea) return true;
+  if (isNearAppRoot(el) && coversPageArea && hasPageShellClass) return true;
+  return false;
 }
 
 function isInspectableChildElement(el: Element): boolean {
@@ -709,6 +781,47 @@ function isInspectableChildElement(el: Element): boolean {
   const style = getComputedStyle(el);
   if (style.display === 'none' || style.visibility === 'hidden') return false;
   return true;
+}
+
+function getVisibleDirectChildCount(el: Element): number {
+  return Array.from(el.children).filter(isInspectableChildElement).length;
+}
+
+function canControlElementGap(el: Element): boolean {
+  const cs = getComputedStyle(el);
+  return isFlexGridDisplay(cs.display) && getVisibleDirectChildCount(el) >= 2;
+}
+
+function getPageSectionKind(el: Element): string {
+  const tag = el.tagName.toLowerCase();
+  const classText = getClasses(el).join(' ').toLowerCase();
+  if (/hero|masthead|banner/.test(classText)) return 'Hero';
+  if (/action|toolbar|button/.test(classText)) return 'Actions';
+  if (/component|example/.test(classText)) return 'Components';
+  if (/plain|content|block|section/.test(classText)) return 'Section';
+  if (tag === 'form' || /form|field/.test(classText)) return 'Form';
+  if (tag === 'nav' || /nav|menu/.test(classText)) return 'Navigation';
+  return 'Section';
+}
+
+function getPageSectionLabel(el: Element, index: number): string {
+  const heading = el.querySelector('h1, h2, h3, [data-di-slot="title"], [class*="title"], [class*="heading"]');
+  const text = (heading?.textContent ?? '').trim().replace(/\s+/g, ' ');
+  if (text) return text;
+  return `${getPageSectionKind(el)} ${index + 1}`;
+}
+
+function getPageShellSections(el: Element): PageShellSection[] {
+  return Array.from(el.children)
+    .filter(isInspectableChildElement)
+    .slice(0, 8)
+    .map((child, index) => ({
+      key: `page-section-${index}`,
+      label: getPageSectionLabel(child, index),
+      kind: getPageSectionKind(child),
+      selector: getSelectorForScope(child, 'current'),
+      element: child,
+    }));
 }
 
 function getStructuralChildType(el: Element): { key: string; label: string } | null {
@@ -767,6 +880,86 @@ function getStructuralChildGroups(el: Element): StructuralChildGroup[] {
     const order = ['title', 'body', 'text', 'button', 'link', 'badge', 'input', 'icon', 'label'];
     return order.indexOf(a.key) - order.indexOf(b.key);
   });
+}
+
+function getCollectionItemSignature(el: Element): { key: string; label: string } | null {
+  const meta = getInspectorComponentMeta(el);
+  if (meta) {
+    const label = getComponentDisplayName(meta);
+    return { key: `component:${meta.type}:${label}`, label };
+  }
+
+  const tag = el.tagName.toLowerCase();
+  const semanticClass = getClasses(el).find(className =>
+    !isStateClass(className)
+    && !/^lucide(-|$)/.test(className)
+    && STRUCTURAL_CONTAINER_CLASS_RE.test(className)
+  );
+  if (semanticClass) return { key: `class:${semanticClass}`, label: getElementDisplayName(el) };
+  if (tag === 'article' || tag === 'li') return { key: `tag:${tag}`, label: getElementDisplayName(el) };
+  return null;
+}
+
+function getCollectionLayoutLabel(el: Element, display: string): string {
+  const tag = el.tagName.toLowerCase();
+  const classes = getClasses(el);
+  if (display.includes('grid') || classes.some(className => /(^|[-_])(grid|matrix|columns)([-_]|$)/i.test(className))) return 'Grid';
+  if (tag === 'ul' || tag === 'ol' || classes.some(className => /(^|[-_])(list|feed)([-_]|$)/i.test(className))) return 'List';
+  if (display.includes('flex') || classes.some(className => /(^|[-_])(row|stack|rail|track)([-_]|$)/i.test(className))) return 'Flex';
+  return 'Layout';
+}
+
+function getCollectionItemLabel(el: Element, fallbackLabel: string, index: number): string {
+  const heading = el.querySelector('h1, h2, h3, [data-di-slot="title"], [class*="title"], [class*="heading"]');
+  const text = (heading?.textContent ?? '').trim().replace(/\s+/g, ' ');
+  return text || `${fallbackLabel} ${index + 1}`;
+}
+
+function getCollectionLayoutInfo(el: Element): CollectionLayoutInfo | null {
+  if (getInspectorComponentMeta(el)) return null;
+  if (isTextOnlyTargetElement(el)) return null;
+  if (el === document.documentElement || el === document.body) return null;
+
+  const tag = el.tagName.toLowerCase();
+  const cs = getComputedStyle(el);
+  const hasCollectionLayoutClass = getClasses(el).some(className =>
+    !isStateClass(className) && COLLECTION_LAYOUT_CLASS_RE.test(className)
+  );
+  const isLayoutish = isFlexGridDisplay(cs.display)
+    || tag === 'ul'
+    || tag === 'ol'
+    || hasCollectionLayoutClass;
+  if (!isLayoutish) return null;
+
+  const children = Array.from(el.children).filter(isInspectableChildElement);
+  if (children.length < 2) return null;
+
+  const grouped = new Map<string, { label: string; items: Element[] }>();
+  children.forEach(child => {
+    const signature = getCollectionItemSignature(child);
+    if (!signature) return;
+    const group = grouped.get(signature.key) ?? { label: signature.label, items: [] };
+    group.items.push(child);
+    grouped.set(signature.key, group);
+  });
+
+  const repeated = Array.from(grouped.values())
+    .filter(group => group.items.length >= 2)
+    .sort((a, b) => b.items.length - a.items.length)[0];
+  if (!repeated) return null;
+
+  return {
+    layoutLabel: getCollectionLayoutLabel(el, cs.display),
+    itemLabel: repeated.label,
+    itemCount: repeated.items.length,
+    totalCount: children.length,
+    items: repeated.items.slice(0, 8).map((item, index) => ({
+      key: `collection-item-${index}`,
+      label: getCollectionItemLabel(item, repeated.label, index),
+      selector: getSelectorForScope(item, 'current'),
+      element: item,
+    })),
+  };
 }
 
 function classSelector(classes: string[]): string {
@@ -2192,37 +2385,39 @@ function ColorDropdown({ value, onChange, onClose, onAddToken, pos, colorPalette
     <>
       <div style={{ position: 'fixed', inset: 0, zIndex: 99997 }} onClick={onClose} />
       <div className="di-palette-dropdown" style={style}>
-        {/* 无背景色 */}
-        <div className="di-palette-group">
-          <div className="di-palette-group-label">无</div>
-          <div className="di-palette-swatches">
-            <button className="di-palette-none" title="无背景色 / transparent"
-              onClick={() => { onChange('transparent', ''); onClose(); }} />
-          </div>
-        </div>
-
-        {/* 色板 + 每组末尾「+」格子 */}
-        {colorPalette.map(g => (
-          <div key={g.group} className="di-palette-group">
-            <div className="di-palette-group-label">{g.group}</div>
+        <div className="di-palette-scroll">
+          {/* 无背景色 */}
+          <div className="di-palette-group">
+            <div className="di-palette-group-label">无</div>
             <div className="di-palette-swatches">
-              {g.colors.map(c => (
-                <button key={c.token}
-                  className={`di-palette-swatch${value === c.val ? ' di-palette-swatch--on' : ''}`}
-                  style={{ background: c.val }}
-                  title={`${g.group}·${c.label}  ${c.val}`}
-                  onClick={() => { onChange(c.val, c.token); onClose(); }}
-                />
-              ))}
-              {onAddToken && (
-                <button className="di-palette-add-btn" title={`添加为${g.group}色 token`}
-                  onClick={() => { onAddToken(buildColor(hexInput, alpha)); onClose(); }}>
-                  +
-                </button>
-              )}
+              <button className="di-palette-none" title="无背景色 / transparent"
+                onClick={() => { onChange('transparent', ''); onClose(); }} />
             </div>
           </div>
-        ))}
+
+          {/* 色板 + 每组末尾「+」格子 */}
+          {colorPalette.map((g, index) => (
+            <div key={g.group} className={`di-palette-group${index === colorPalette.length - 1 ? ' di-palette-group--last' : ''}`}>
+              <div className="di-palette-group-label">{g.group}</div>
+              <div className="di-palette-swatches">
+                {g.colors.map(c => (
+                  <button key={c.token}
+                    className={`di-palette-swatch${value === c.val ? ' di-palette-swatch--on' : ''}`}
+                    style={{ background: c.val }}
+                    title={`${g.group}·${c.label}  ${c.val}`}
+                    onClick={() => { onChange(c.val, c.token); onClose(); }}
+                  />
+                ))}
+                {onAddToken && (
+                  <button className="di-palette-add-btn" title={`添加为${g.group}色 token`}
+                    onClick={() => { onAddToken(buildColor(hexInput, alpha)); onClose(); }}>
+                    +
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
 
         {/* 自定义底部：色块 + [#][hex] + [alpha][%] */}
         <div className="di-custom-bottom">
@@ -2700,7 +2895,7 @@ export function InspectorPanel({
   const [customColorVals, setCustomColorVals] = useState<Record<string, string>>({});
   const selectedRef = useRef<Element>(targetEl);
   const localDraftsRef = useRef<Record<string, LocalDraftEntry>>({});
-  const gapTargetRef = useRef<HTMLElement | null>(null); // gap 实际作用的元素（可能是父容器）
+  const gapTargetRef = useRef<HTMLElement | null>(null); // gap 只作用于当前可产生子项间距的容器
 
   useEffect(() => { modalOpenRef.current = addTokenModal !== null; }, [addTokenModal]);
   useEffect(() => { localDraftsRef.current = localDrafts; }, [localDrafts]);
@@ -2747,7 +2942,10 @@ export function InspectorPanel({
   function getDraftTargetInfo(el: Element): Pick<LocalDraftEntry, 'key' | 'selector' | 'targetLabel' | 'scopeLabel'> {
     const componentMeta = getInspectorComponentMeta(el);
     const selector = getSelectorForScope(el, scope);
-    const targetLabel = getTargetDisplayLabel(el, componentMeta);
+    const collectionLayoutInfo = getCollectionLayoutInfo(el);
+    const targetLabel = collectionLayoutInfo
+      ? `布局 / ${getElementDisplayName(el, componentMeta)}`
+      : getTargetDisplayLabel(el, componentMeta);
     return {
       key: `${scope}:${selector}`,
       selector,
@@ -2836,20 +3034,13 @@ export function InspectorPanel({
     };
     setPaddingVal(normPad(`${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft}`));
     setMarginVal(normPad(`${cs.marginTop} ${cs.marginRight} ${cs.marginBottom} ${cs.marginLeft}`));
-    if (isFlexGridDisplay(cs.display)) {
+    if (canControlElementGap(el)) {
       const g = cs.gap.trim();
       setGapVal(g === 'normal' ? '0px' : g);
       gapTargetRef.current = el as HTMLElement;
-    } else if (el.parentElement) {
-      const pcs = getComputedStyle(el.parentElement);
-      if (isFlexGridDisplay(pcs.display)) {
-        const g = pcs.gap.trim();
-        setGapVal(g === 'normal' ? '0px' : g);
-        gapTargetRef.current = el.parentElement as HTMLElement;
-      } else {
-        setGapVal('0px');
-        gapTargetRef.current = el as HTMLElement;
-      }
+    } else {
+      setGapVal('0px');
+      gapTargetRef.current = null;
     }
     setPendingPadding(''); setPendingMargin(''); setPendingGap('');
     setSpaceCustomModes({ padding: false, margin: false, gap: false });
@@ -3068,7 +3259,7 @@ export function InspectorPanel({
       ...(pendingFontWeight ? [['font-weight', pendingFontWeight] as [string, string]] : []),
       ...(pendingPadding ? [['padding', pendingPadding] as [string, string]] : []),
       ...(pendingMargin ? [['margin', pendingMargin] as [string, string]] : []),
-      ...(pendingGap ? [['gap', pendingGap] as [string, string]] : []),
+      ...(pendingGap && gapTargetRef.current ? [['gap', pendingGap] as [string, string]] : []),
       ...(pendingTranslate ? [['translate', formatTranslate(pendingTranslate)] as [string, string]] : []),
       ...(pendingWidth ? [['width', pendingWidth] as [string, string]] : []),
       ...(pendingHeight ? [['height', pendingHeight] as [string, string]] : []),
@@ -4317,6 +4508,56 @@ export function InspectorPanel({
     };
   }
 
+  function buildPageShellSpecValue(el: Element): string {
+    const sections = getPageShellSections(el);
+    const cs = getComputedStyle(el);
+    const gap = cs.gap.trim() === 'normal' ? '0px' : cs.gap.trim();
+    const sectionSummary = sections.length
+      ? sections.map(section => `${section.kind}：${section.label}（${section.selector}）`).join('；')
+      : '未识别到页面区块';
+
+    return [
+      '类型：页面规格',
+      `页面容器：${getElementDisplayName(el)}`,
+      `区块：${sectionSummary}`,
+      `布局：宽 ${formatLengthControlValue(cs.width)} / 高 ${formatLengthControlValue(cs.height)}；内边距 ${formatLengthControlValue(cs.paddingTop)} ${formatLengthControlValue(cs.paddingRight)} ${formatLengthControlValue(cs.paddingBottom)} ${formatLengthControlValue(cs.paddingLeft)}；区块间距 ${formatLengthControlValue(gap)}`,
+      '目标：整理页面结构，按 section 拆分为可维护区块；不要把整个页面封装成单个组件',
+      '约束：保留业务逻辑；优先复用 token；不要手改 dist',
+    ].join('；');
+  }
+
+  function buildPageShellDraftEntry(el: Element): LocalDraftEntry {
+    const selector = getSelectorForScope(el, 'current');
+    const key = `page:${selector}`;
+    const existing = localDraftsRef.current[key];
+    const existingByProp = new Map(existing?.changes.map(change => [change.prop, change]) ?? []);
+    const mergedByProp = new Map<string, LocalDraftChange>();
+    existing?.changes.forEach(change => mergedByProp.set(change.prop, change));
+    const previous = existingByProp.get('page-spec');
+    mergedByProp.set('page-spec', {
+      prop: 'page-spec',
+      from: previous?.from ?? '未记录',
+      val: buildPageShellSpecValue(el),
+    });
+    return {
+      key,
+      selector,
+      targetLabel: `页面 / ${getElementDisplayName(el)}`,
+      scopeLabel: '当前页面',
+      changes: Array.from(mergedByProp.values()),
+      updatedAt: Date.now(),
+    };
+  }
+
+  function handleSendPageShellSpecToAi() {
+    const el = selectedRef.current;
+    if (!el) return;
+    const nextEntry = buildPageShellDraftEntry(el);
+    const nextDrafts = { ...localDraftsRef.current, [nextEntry.key]: nextEntry };
+    setLocalDrafts(nextDrafts);
+    copyDraftEntriesToAi(Object.values(nextDrafts));
+  }
+
   function openComponentCreateDrawer() {
     const el = selectedRef.current;
     const defaults = getComponentMakerSpecDefaults(el);
@@ -4500,9 +4741,13 @@ export function InspectorPanel({
     const changes = params.changes
       .map((change, index) => `${index + 1}. ${getChangeLabel(change.prop)}：${formatStoredChangeRecordValue(change.prop, change.from)} → ${formatStoredChangeRecordValue(change.prop, change.val)}`)
       .join('\n');
+    const isLayoutContainerTask = params.targetLabel.startsWith('布局 /');
     const latestHint = params.entryId
       ? `优先处理 id = ${params.entryId} 这条记录。`
       : '这条任务来自 DevInspector 当前选中元素。';
+    const taskHint = isLayoutContainerTask
+      ? `${latestHint} 该对象是重复集合或布局容器，只处理外层位置、尺寸、padding、gap 和对齐；不要修改子项内容、子组件样式或业务逻辑。`
+      : latestHint;
     return [
       'DevInspector 样式任务',
       `页面：${params.pageLabel}`,
@@ -4513,7 +4758,7 @@ export function InspectorPanel({
       changes || '无样式改动',
       ...(params.note ? ['补充：', params.note] : []),
       '定位提示：',
-      latestHint,
+      taskHint,
       '请优先定位该选择器对应的组件或样式源码，判断是否应固化为正式组件样式；不要手改 dist。',
     ].join('\n');
   }
@@ -4524,6 +4769,8 @@ export function InspectorPanel({
       || change.prop.startsWith('component-new-variant:')
       || change.prop.startsWith('component-variant-group:')
     )));
+    const hasPageSpec = drafts.some(draft => draft.changes.some(change => change.prop === 'page-spec'));
+    const hasLayoutContainerTask = drafts.some(draft => draft.targetLabel.startsWith('布局 /'));
     const sections = drafts
       .sort((a, b) => a.updatedAt - b.updatedAt)
       .map((draft, index) => {
@@ -4539,16 +4786,24 @@ export function InspectorPanel({
         ].join('\n');
       })
       .join('\n\n');
+    const title = hasPageSpec
+      ? 'DevInspector 页面 / 样式任务'
+      : hasComponentSpec ? 'DevInspector 组件 / 样式任务' : 'DevInspector 样式任务';
+    const locationHint = hasPageSpec
+      ? '这些内容来自 DevInspector 本次修改内容；页面规格是用户确认的草稿，请按页面容器、区块列表和布局规则定位源码，优先拆分 section，不要把整个页面封装成单个组件；不要手改 dist。'
+      : hasComponentSpec
+        ? '这些内容来自 DevInspector 本次修改内容；组件规格和新变体是用户确认的草稿，请按组件名、可编辑内容、变体维度、状态、尺寸和样式规则定位源码落地；不要手改 dist。'
+        : hasLayoutContainerTask
+          ? '这些内容来自 DevInspector 本次修改内容；布局容器只处理外层位置、尺寸、padding、gap 和对齐，里层内容、子组件样式和业务逻辑需要单独选中后再改；不要手改 dist。'
+          : '这些内容来自 DevInspector 本次修改内容，请按对象逐一定位源码，判断是否应固化为组件样式、token 或局部覆盖；不要手改 dist。';
     return [
-      hasComponentSpec ? 'DevInspector 组件 / 样式任务' : 'DevInspector 样式任务',
+      title,
       `页面：${document.title || '当前页面'}（${window.location.href}）`,
       `待处理对象：${drafts.length}`,
       sections,
       ...(note ? ['补充：', note] : []),
       '定位提示：',
-      hasComponentSpec
-        ? '这些内容来自 DevInspector 本次修改内容；组件规格和新变体是用户确认的草稿，请按组件名、可编辑内容、变体维度、状态、尺寸和样式规则定位源码落地；不要手改 dist。'
-        : '这些内容来自 DevInspector 本次修改内容，请按对象逐一定位源码，判断是否应固化为组件样式、token 或局部覆盖；不要手改 dist。',
+      locationHint,
     ].join('\n');
   }
 
@@ -4581,7 +4836,10 @@ export function InspectorPanel({
     const scopeLabel = hasOnlyInstanceContentPending
       ? '当前元素'
       : scope === 'current' ? '当前元素' : '相同元素';
-    const targetLabel = getTargetDisplayLabel(el, componentMeta);
+    const collectionLayoutInfo = getCollectionLayoutInfo(el);
+    const targetLabel = collectionLayoutInfo
+      ? `布局 / ${getElementDisplayName(el, componentMeta)}`
+      : getTargetDisplayLabel(el, componentMeta);
     const stableSelector = componentMeta && hasComponentAttrPending && componentSelectorVal
       ? componentSelectorVal
       : selector;
@@ -4865,6 +5123,7 @@ export function InspectorPanel({
       'component-color': '组件颜色',
       'component-status': '标签状态',
       'component-spec': '组件规格',
+      'page-spec': '页面规格',
     };
     if (prop.startsWith('component-slot:')) {
       const slotKey = prop.replace('component-slot:', '');
@@ -5273,7 +5532,14 @@ export function InspectorPanel({
   const showComponentVariantMeta = !!componentMeta
     && (!!componentCapability?.variantKind || componentMeta.variant !== 'default');
   const isTextOnlyTarget = isTextOnlyTargetElement(selected);
-  const isStructuralContainerTarget = isStructuralContainerTargetElement(selected);
+  const isPageShellTarget = isPageShellTargetElement(selected);
+  const showPageShellSummary = false;
+  const collectionLayoutInfo = !isPageShellTarget ? getCollectionLayoutInfo(selected) : null;
+  const isCollectionLayoutTarget = !!collectionLayoutInfo;
+  const isStructuralContainerTarget = !isPageShellTarget && !isCollectionLayoutTarget && isStructuralContainerTargetElement(selected);
+  const isSimpleTextGroupTarget = isSimpleTextGroupTargetElement(selected);
+  const showStructuralContainerSummary = false;
+  const hideTextStyleSection = isPageShellTarget || isStructuralContainerTarget || isSimpleTextGroupTarget;
   const canAlignChildren = isFlexGridDisplay(getComputedStyle(selected).display);
   const activeButtonVariant = pendingComponentVariant || componentVariantVal;
   const activeButtonSize = pendingComponentSize || componentSizeVal;
@@ -5281,7 +5547,9 @@ export function InspectorPanel({
   const activeBadgeStatus = pendingBadgeStatus || badgeStatusVal;
   const activeCardVariant = pendingCardVariant || cardVariantVal;
   const componentSizeOptions = getComponentSizeControlOptions(componentCapability);
-  const showElementStyleSections = !componentMeta && (!isStructuralContainerTarget || structuralStyleOpen);
+  const showElementStyleSections = !componentMeta && (
+    (!isCollectionLayoutTarget) || structuralStyleOpen
+  );
   const localDraftEntries = Object.values(localDrafts).sort((a, b) => b.updatedAt - a.updatedAt);
   const localDraftChangeCount = localDraftEntries.reduce((sum, entry) => sum + entry.changes.length, 0);
   const currentPendingChangeCount = getPendingChangeRecords().length;
@@ -5373,7 +5641,7 @@ export function InspectorPanel({
     option.key === 'create-current-variant' || option.key === 'create-other-variant'
   );
   const componentMakerLivePreviewHtml = getComponentMakerLivePreviewHtml(selected, activeComponentMakerVariantPreview);
-  const canCreateComponent = Boolean(selected) && !componentMeta;
+  const canCreateComponent = Boolean(selected) && !componentMeta && !isCollectionLayoutTarget;
   const componentCreateTargetLabel = selected ? getElementDisplayName(selected, componentMeta) : '当前元素';
   const componentCreateSelector = selected ? getSelectorForScope(selected, 'current') : '';
   const componentCreateDefaultText = selected ? (getTextContent(selected) ?? '').trim() : '';
@@ -5391,14 +5659,20 @@ export function InspectorPanel({
       )
       : ''),
   );
-  const structuralChildGroups = isStructuralContainerTarget ? getStructuralChildGroups(selected) : [];
+  const structuralChildGroups = showStructuralContainerSummary && isStructuralContainerTarget ? getStructuralChildGroups(selected) : [];
   const structuralChildCount = structuralChildGroups.reduce((sum, group) => sum + group.count, 0);
   const structuralChildSummary = structuralChildGroups.length
     ? structuralChildGroups.map(group => `${group.label} ${group.count}`).join(' / ')
     : '暂未识别到可配置子元素';
+  const pageShellSections = isPageShellTarget ? getPageShellSections(selected) : [];
+  const pageShellSectionSummary = pageShellSections.length
+    ? pageShellSections.map(section => section.label).join(' / ')
+    : '暂未识别到页面区块';
+  const panelTitle = isCollectionLayoutTarget ? '布局样式' : '页面样式';
   const activePaddingValue = pendingPadding || paddingVal;
   const activeMarginValue = pendingMargin || marginVal;
   const activeGapValue = pendingGap || gapVal;
+  const showElementGapControl = canControlElementGap(selected);
   const shouldUseCustomSpaceControls = (variant: SpaceVariant, value: string) => (
     spaceCustomModes[variant] || isEmptySpaceValue(variant, value)
   );
@@ -5429,7 +5703,7 @@ export function InspectorPanel({
           {/* 顶部 */}
           <div className="di-head" onMouseDown={onDragStart}>
             <div className="di-head-left">
-              <span className="di-title">页面样式</span>
+              <span className="di-title">{panelTitle}</span>
               <span className="di-badge-dev">Dev Only</span>
               <button
                 className="di-head-icon-btn"
@@ -6048,7 +6322,157 @@ export function InspectorPanel({
               </div>
             )}
 
-            {isStructuralContainerTarget && (
+            {showPageShellSummary && isPageShellTarget && (
+              <div className="di-section di-structure-section di-page-shell-section">
+                <div className="di-structure-callout di-page-shell-callout">
+                  <div className="di-structure-callout-copy">
+                    <div className="di-structure-title">页面级容器</div>
+                    <div className="di-structure-desc">
+                      当前对象是页面壳层，优先整理页面结构和区块拆分；不要把整个页面创建成单个组件。
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="di-structure-action"
+                    onClick={handleSendPageShellSpecToAi}
+                    title="生成页面结构规格并复制 AI 任务"
+                  >
+                    生成页面规格
+                  </button>
+                </div>
+                <div className="di-structure-summary-grid">
+                  <div className="di-structure-summary-card">
+                    <div className="di-structure-summary-main">
+                      <span className="di-structure-summary-label">页面区块</span>
+                      <strong>{pageShellSections.length ? `${pageShellSections.length} 个` : '未识别'}</strong>
+                      <small>{pageShellSectionSummary}</small>
+                    </div>
+                    {pageShellSections.length > 0 && (
+                      <button
+                        type="button"
+                        className="di-structure-link"
+                        onClick={() => setStructuralChildrenOpen(value => !value)}
+                      >
+                        {structuralChildrenOpen ? '收起' : '管理'}
+                      </button>
+                    )}
+                  </div>
+                  {structuralChildrenOpen && pageShellSections.length > 0 && (
+                    <div className="di-structure-child-groups">
+                      <div className="di-structure-child-group">
+                        <div className="di-structure-child-group-head">
+                          <span>区块</span>
+                          <small>{pageShellSections.length}</small>
+                        </div>
+                        <div className="di-structure-child-list">
+                          {pageShellSections.map(section => (
+                            <button
+                              type="button"
+                              className="di-structure-child-item"
+                              key={section.key}
+                              onClick={() => selectEl(section.element)}
+                              title={section.selector}
+                            >
+                              <span>{section.kind}</span>
+                              <small>{section.label}</small>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="di-structure-summary-card">
+                    <div className="di-structure-summary-main">
+                      <span className="di-structure-summary-label">页面布局</span>
+                      <strong>页面结构规格</strong>
+                      <small>
+                        {`布局 ${formatLengthControlValue(widthVal)} / ${formatLengthControlValue(heightVal)} · 间距 ${formatLengthControlValue(activePaddingValue)} / ${formatLengthControlValue(activeGapValue)}`}
+                      </small>
+                    </div>
+                    <button
+                      type="button"
+                      className="di-structure-link"
+                      onClick={() => setStructuralStyleOpen(value => !value)}
+                    >
+                      {structuralStyleOpen ? '收起' : '展开调整'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {isCollectionLayoutTarget && collectionLayoutInfo && (
+              <div className="di-section di-structure-section di-layout-container-section">
+                <div className="di-structure-callout di-layout-container-callout">
+                  <div className="di-structure-callout-copy">
+                    <div className="di-structure-title">布局容器</div>
+                    <div className="di-structure-desc">
+                      当前结构用于排列多个同类子项；默认只调整外层位置、间距和尺寸，不改子项内容。
+                    </div>
+                  </div>
+                </div>
+                <div className="di-structure-summary-grid">
+                  <div className="di-structure-summary-card">
+                    <div className="di-structure-summary-main">
+                      <span className="di-structure-summary-label">子项</span>
+                      <strong>{`${collectionLayoutInfo.itemCount} 个 ${collectionLayoutInfo.itemLabel}`}</strong>
+                      <small>只用于选中子项，不在父层编辑子项</small>
+                    </div>
+                    {collectionLayoutInfo.items.length > 0 && (
+                      <button
+                        type="button"
+                        className="di-structure-link"
+                        onClick={() => setStructuralChildrenOpen(value => !value)}
+                      >
+                        {structuralChildrenOpen ? '收起' : '管理'}
+                      </button>
+                    )}
+                  </div>
+                  {structuralChildrenOpen && collectionLayoutInfo.items.length > 0 && (
+                    <div className="di-structure-child-groups">
+                      <div className="di-structure-child-group">
+                        <div className="di-structure-child-group-head">
+                          <span>{collectionLayoutInfo.itemLabel}</span>
+                          <small>{collectionLayoutInfo.itemCount}</small>
+                        </div>
+                        <div className="di-structure-child-list">
+                          {collectionLayoutInfo.items.map(item => (
+                            <button
+                              type="button"
+                              className="di-structure-child-item"
+                              key={item.key}
+                              onClick={() => selectEl(item.element)}
+                              title={item.selector}
+                            >
+                              <span>{collectionLayoutInfo.itemLabel}</span>
+                              <small>{item.label}</small>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="di-structure-summary-card">
+                    <div className="di-structure-summary-main">
+                      <span className="di-structure-summary-label">整体布局</span>
+                      <strong>{`${collectionLayoutInfo.layoutLabel} 布局`}</strong>
+                      <small>
+                        {`布局 ${formatLengthControlValue(widthVal)} / ${formatLengthControlValue(heightVal)} · 间距 ${formatLengthControlValue(activePaddingValue)} / ${formatLengthControlValue(activeGapValue)}`}
+                      </small>
+                    </div>
+                    <button
+                      type="button"
+                      className="di-structure-link"
+                      onClick={() => setStructuralStyleOpen(value => !value)}
+                    >
+                      {structuralStyleOpen ? '收起' : '展开调整'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {showStructuralContainerSummary && isStructuralContainerTarget && (
               <div className="di-section di-structure-section">
                 <div className="di-structure-callout">
                   <div className="di-structure-callout-copy">
@@ -6368,6 +6792,7 @@ export function InspectorPanel({
             {showElementStyleSections && (
               <>
             {/* 文字区（内容 + 一行式文字工具条） */}
+            {!hideTextStyleSection && (
             <div className="di-section di-text-section">
               <div className="di-section-title-row di-section-title-row--action">
                 <div className="di-section-title">{isStructuralContainerTarget ? '子文本样式' : '文字'}</div>
@@ -6647,6 +7072,7 @@ export function InspectorPanel({
               )}
               </div>
             </div>
+            )}
 
             {/* 外观区 */}
             {!isTextOnlyTarget && (
@@ -7375,16 +7801,18 @@ export function InspectorPanel({
                   }}
                   onChange={v => { setPendingMargin(v); liveApply('margin', v); }}
                 />
-                <SpaceCard
-                  title="元素间距" variant="gap"
-                  value={activeGapValue}
-                  spaceSteps={spaceSteps}
-                  custom={shouldUseCustomSpaceControls('gap', activeGapValue)}
-                  onCustomChange={v => {
-                    setSpaceCustomModes(prev => ({ ...prev, gap: v }));
-                  }}
-                  onChange={v => { setPendingGap(v); liveApply('gap', v); }}
-                />
+                {showElementGapControl && (
+                  <SpaceCard
+                    title="元素间距" variant="gap"
+                    value={activeGapValue}
+                    spaceSteps={spaceSteps}
+                    custom={shouldUseCustomSpaceControls('gap', activeGapValue)}
+                    onCustomChange={v => {
+                      setSpaceCustomModes(prev => ({ ...prev, gap: v }));
+                    }}
+                    onChange={v => { setPendingGap(v); liveApply('gap', v); }}
+                  />
+                )}
               </div>
             </div>
               </>
@@ -7480,56 +7908,58 @@ export function InspectorPanel({
           {(() => {
             const hasPending = localDraftChangeCount > 0 || currentPendingChangeCount > 0 || !!note;
             return (
-          <div className="di-foot">
-            <button className="di-btn-cancel" onClick={handleReset}>重置</button>
-            <button className="di-btn-cancel" onClick={() => {
-              const el = selectedRef.current;
-              if (!el) return;
-              // 合并实际值 + pending 改动，pending 优先
-              const effectiveColors = { ...colors, ...pendingColors };
-              const pending: [string, string][] = [
-                ...Object.entries(effectiveColors).filter(([, v]) => v && v !== 'transparent'),
-                [(pendingTextColor || textColorVal) ? 'color' : '', pendingTextColor || textColorVal],
-                [(pendingRadius || radiusVal) ? 'border-radius' : '', pendingRadius || radiusVal],
-                [(pendingShadow || (shadowVal !== 'none' ? shadowVal : '')) ? 'box-shadow' : '', pendingShadow || (shadowVal !== 'none' ? shadowVal : '')],
-                [(pendingBorderColor || borderColorVal) ? 'border-color' : '', pendingBorderColor || borderColorVal],
-                [(pendingBorderWidth || (borderWidthVal !== '0px' ? borderWidthVal : '')) ? 'border-width' : '', pendingBorderWidth || borderWidthVal],
-                [(pendingBorderStyle || (borderStyleVal !== 'none' ? borderStyleVal : '')) ? 'border-style' : '', pendingBorderStyle || borderStyleVal],
-                [(pendingFontSize || fontSizeVal) ? 'font-size' : '', pendingFontSize || fontSizeVal],
-                [(pendingFontWeight || fontWeightVal) ? 'font-weight' : '', pendingFontWeight || fontWeightVal],
-                [(pendingPadding || (paddingVal !== '0px' ? paddingVal : '')) ? 'padding' : '', pendingPadding || paddingVal],
-                [(pendingMargin || (marginVal !== '0px' ? marginVal : '')) ? 'margin' : '', pendingMargin || marginVal],
-                [(pendingGap || (gapVal !== '0px' ? gapVal : '')) ? 'gap' : '', pendingGap || gapVal],
-                [(pendingWidth || widthVal) ? 'width' : '', pendingWidth || widthVal],
-                [(pendingHeight || heightVal) ? 'height' : '', pendingHeight || heightVal],
-                [pendingJustifyContent ? 'justify-content' : '', pendingJustifyContent],
-                [pendingAlignItems ? 'align-items' : '', pendingAlignItems],
-              ].filter(([k, v]) => k && v) as [string, string][];
-              const selector = getSelectorForScope(el, scope);
-              const css = pending.length > 0
-                ? `${selector} {\n${pending.map(([p, v]) => `  ${p}: ${v};`).join('\n')}\n}`
-                : `/* ${selector} — 暂无改动 */`;
-              const ta = document.createElement('textarea');
-              ta.value = css;
-              ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
-              document.body.appendChild(ta);
-              ta.select();
-              document.execCommand('copy');
-              document.body.removeChild(ta);
-              _copiedStyles = pending.map(([p, v]) => ({ prop: p, val: v }));
-              setHasCopied(true);
-              setCopyMsg('已复制 ✓');
-              setTimeout(() => setCopyMsg(''), 1500);
-            }}>{copyMsg || '复制样式'}</button>
-            {canCreateComponent && (
-              <button
-                className="di-btn-cancel di-btn-maker"
-                onClick={openComponentCreateDrawer}
-                title="把当前普通元素沉淀为新组件规范"
-              >
-                创建组件
-              </button>
-            )}
+          <div className={`di-foot${canCreateComponent ? ' di-foot--with-maker' : ' di-foot--without-maker'}`}>
+            <div className="di-foot-secondary-actions">
+              <button className="di-btn-cancel" onClick={handleReset}>重置</button>
+              <button className="di-btn-cancel" onClick={() => {
+                const el = selectedRef.current;
+                if (!el) return;
+                // 合并实际值 + pending 改动，pending 优先
+                const effectiveColors = { ...colors, ...pendingColors };
+                const pending: [string, string][] = [
+                  ...Object.entries(effectiveColors).filter(([, v]) => v && v !== 'transparent'),
+                  [(pendingTextColor || textColorVal) ? 'color' : '', pendingTextColor || textColorVal],
+                  [(pendingRadius || radiusVal) ? 'border-radius' : '', pendingRadius || radiusVal],
+                  [(pendingShadow || (shadowVal !== 'none' ? shadowVal : '')) ? 'box-shadow' : '', pendingShadow || (shadowVal !== 'none' ? shadowVal : '')],
+                  [(pendingBorderColor || borderColorVal) ? 'border-color' : '', pendingBorderColor || borderColorVal],
+                  [(pendingBorderWidth || (borderWidthVal !== '0px' ? borderWidthVal : '')) ? 'border-width' : '', pendingBorderWidth || borderWidthVal],
+                  [(pendingBorderStyle || (borderStyleVal !== 'none' ? borderStyleVal : '')) ? 'border-style' : '', pendingBorderStyle || borderStyleVal],
+                  [(pendingFontSize || fontSizeVal) ? 'font-size' : '', pendingFontSize || fontSizeVal],
+                  [(pendingFontWeight || fontWeightVal) ? 'font-weight' : '', pendingFontWeight || fontWeightVal],
+                  [(pendingPadding || (paddingVal !== '0px' ? paddingVal : '')) ? 'padding' : '', pendingPadding || paddingVal],
+                  [(pendingMargin || (marginVal !== '0px' ? marginVal : '')) ? 'margin' : '', pendingMargin || marginVal],
+                  [(pendingGap || (gapVal !== '0px' ? gapVal : '')) ? 'gap' : '', pendingGap || gapVal],
+                  [(pendingWidth || widthVal) ? 'width' : '', pendingWidth || widthVal],
+                  [(pendingHeight || heightVal) ? 'height' : '', pendingHeight || heightVal],
+                  [pendingJustifyContent ? 'justify-content' : '', pendingJustifyContent],
+                  [pendingAlignItems ? 'align-items' : '', pendingAlignItems],
+                ].filter(([k, v]) => k && v) as [string, string][];
+                const selector = getSelectorForScope(el, scope);
+                const css = pending.length > 0
+                  ? `${selector} {\n${pending.map(([p, v]) => `  ${p}: ${v};`).join('\n')}\n}`
+                  : `/* ${selector} — 暂无改动 */`;
+                const ta = document.createElement('textarea');
+                ta.value = css;
+                ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                _copiedStyles = pending.map(([p, v]) => ({ prop: p, val: v }));
+                setHasCopied(true);
+                setCopyMsg('已复制 ✓');
+                setTimeout(() => setCopyMsg(''), 1500);
+              }}>{copyMsg || '复制样式'}</button>
+              {canCreateComponent && (
+                <button
+                  className="di-btn-cancel di-btn-maker"
+                  onClick={openComponentCreateDrawer}
+                  title="把当前普通元素沉淀为新组件规范"
+                >
+                  创建组件
+                </button>
+              )}
+            </div>
             <button
               className="di-btn-save"
               onClick={handleSubmitToAi}

@@ -17,9 +17,11 @@
 | 选择与高亮 | 从页面选择元素，显示当前选中对象和相同元素数量 | `INTERACTION_SPEC.md`、`../design/component-index.md` | 当前 demo / `PROJECT.md` | 已登记 |
 | 作用范围 | 当前元素 / 相同元素切换，相同元素按组件或 primitive 规则计算 | `INTERACTION_SPEC.md`、`../design/component-index.md` | 当前 demo / 已确认交互 | 已登记 |
 | 组件模式 | 展示组件语义能力、内容插槽、子组件入口和外部布局 | `INTERACTION_SPEC.md`、`../design/component-index.md` | `Component Capability Registry` | 已登记 |
+| 页面级容器样式 | 识别页面壳层 / 整页容器，但不展示页面摘要，直接进入普通样式模块 | `INTERACTION_SPEC.md`、`../design/component-index.md` | 当前 demo / 用户确认交互 | 已登记 |
+| 布局容器 | 识别重复集合 / 列表网格容器，默认只调整外层位置、尺寸、padding、gap 和对齐 | `INTERACTION_SPEC.md`、`../design/component-index.md` | 当前 demo / 用户确认交互 | 已登记 |
 | 普通元素样式 | 文字、容器、布局、阴影、间距等元素级样式能力 | `INTERACTION_SPEC.md`、`../design/tokens.md` | 当前 demo / 已确认交互 | 已登记 |
 | 本次修改内容 | 跨对象保留未发送草稿，支持对象删除和属性级重置 | `INTERACTION_SPEC.md` | 当前 demo / 已确认交互 | 已登记 |
-| 发送给 AI | 复制结构化任务文本，包含页面、元素、范围、选择器、改动和定位提示 | `INTERACTION_SPEC.md`、`../../PROJECT.md` | 当前实现 / 已确认文案结构 | 已登记 |
+| 发送给 AI | 复制结构化任务文本，包含页面、元素、范围、选择器、组件规格 / 样式改动和定位提示 | `INTERACTION_SPEC.md`、`../../PROJECT.md` | 当前实现 / 已确认文案结构 | 已登记 |
 
 ## 本阶段不做
 
@@ -35,6 +37,8 @@
 - 类型检查：`npm run typecheck`
 - demo 构建：`npm run build:demo`
 - 当前 demo 页面：`http://127.0.0.1:8765/`
+- 页面级容器验收：选中 `demo-shell` / 页面壳层时，面板显示 `页面样式`，不展示页面区块摘要、页面布局摘要或 `生成页面规格`，直接显示普通样式模块。
+- 布局容器验收：选中 `task-grid` / 重复集合容器时，面板显示 `布局样式`，不显示 `创建组件`，默认只管理同类子项入口和整体布局调整。
 
 ## 待补充
 
