@@ -3,10 +3,12 @@ import { createRoot } from 'react-dom/client';
 import { mountDevInspector } from '@lijinmei-810/dev-inspector';
 import '@lijinmei-810/dev-inspector/style.css';
 import './demo.css';
+import { DemoButton, DemoForm, DemoTaskCard, demoComponentPreviews } from './demo-components';
 
 function DemoApp() {
   useEffect(() => {
     mountDevInspector({
+      componentPreviews: demoComponentPreviews,
       tokens: {
         colorPalette: [
           {
@@ -159,12 +161,12 @@ function DemoApp() {
           <h1>Dev Inspector</h1>
           <p className="demo-subtitle">点击右下角「编辑」，或用 Mac Option+I / Windows Alt+I，再点任意元素查看样式。</p>
         </div>
-        <button className="primary-btn">主按钮</button>
+        <DemoButton variant="primary">主按钮</DemoButton>
       </section>
 
       <section className="demo-actions">
-        <button className="text-button">文字按钮</button>
-        <button className="ghost-button">次按钮</button>
+        <DemoButton variant="text">文字按钮</DemoButton>
+        <DemoButton variant="ghost">次按钮</DemoButton>
       </section>
 
       <section className="demo-block demo-block--components">
@@ -174,21 +176,9 @@ function DemoApp() {
           <p>这里用于测试已识别组件、真实变体、子组件和外部布局。</p>
         </div>
         <div className="task-grid">
-          <article className="task-card is-selected">
-            <span className="status-badge status-badge--progress">进行中</span>
-            <h2 className="task-title">任务标题 1</h2>
-            <p className="card-desc">这是一段示例描述文字，用于展示卡片布局效果。</p>
-          </article>
-          <article className="task-card">
-            <span className="status-badge">待处理</span>
-            <h2 className="task-title">任务标题 2</h2>
-            <p className="card-desc">这是一段示例描述文字，用于展示卡片布局效果。</p>
-          </article>
-          <article className="task-card">
-            <span className="status-badge status-badge--done">已完成</span>
-            <h2 className="task-title">任务标题 3</h2>
-            <p className="card-desc">这是一段示例描述文字，用于展示卡片布局效果。</p>
-          </article>
+          <DemoTaskCard selected status="progress" title="任务标题 1" />
+          <DemoTaskCard status="default" title="任务标题 2" />
+          <DemoTaskCard status="success" title="任务标题 3" />
         </div>
       </section>
 
@@ -252,14 +242,7 @@ function DemoApp() {
         </div>
       </section>
 
-      <form className="demo-form">
-        <input className="demo-input" placeholder="请输入任务名称" />
-        <textarea className="demo-textarea" placeholder="填写补充说明" />
-        <div className="demo-form-actions">
-          <button className="ghost-button" type="button">取消</button>
-          <button className="primary-btn" type="button">提交</button>
-        </div>
-      </form>
+      <DemoForm />
     </main>
   );
 }

@@ -122,10 +122,31 @@ textarea {
 .secondary-button:focus-visible,
 .ghost-button:focus-visible,
 .text-button:focus-visible,
+.demo-icon-button:focus-visible,
 .demo-input:focus-visible,
 .demo-textarea:focus-visible {
   outline: 3px solid rgba(109, 93, 252, 0.22);
   outline-offset: 2px;
+}
+
+.demo-icon-button {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: transform 0.16s, border-color 0.16s, background 0.16s;
+}
+
+.demo-icon-button:hover,
+.demo-icon-button.is-active {
+  transform: translateY(-1px);
+  border-color: rgba(109, 93, 252, 0.36);
+  background: #faf5ff;
 }
 
 .task-grid {
@@ -494,6 +515,24 @@ textarea {
   border-radius: 8px;
   background: var(--color-surface);
   box-shadow: var(--shadow-card);
+}
+
+.demo-form--preview {
+  width: min(320px, 100%);
+  padding: 16px;
+}
+
+.demo-form--preview .demo-input {
+  height: 40px;
+  margin-bottom: 10px;
+}
+
+.demo-form--preview .demo-textarea {
+  min-height: 76px;
+}
+
+.demo-form--preview .demo-form-actions {
+  margin-top: 12px;
 }
 
 .demo-input,

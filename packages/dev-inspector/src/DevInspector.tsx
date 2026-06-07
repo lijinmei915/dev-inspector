@@ -1,10 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, ChevronDown, CircleHelp, Component as ComponentIcon, Minus, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, ChevronDown, CircleHelp, Component as ComponentIcon, Library as LibraryIcon, Minus, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import './dev-inspector.css';
 import { useDevInspectorConfig } from './DevInspectorProvider';
 import type { DevInspectorTokenConfig } from './config';
-import type { ContainerStyleOption, PaletteColor, PaletteGroup, TypographyStyleOption } from './config';
+import type {
+  ContainerStyleOption,
+  DevInspectorComponentPreview,
+  DevInspectorComponentPreviewCategory,
+  DevInspectorComponentPreviewVariant,
+  PaletteColor,
+  PaletteGroup,
+  TypographyStyleOption,
+} from './config';
 import { buildComponentMakerPrompt, formatComponentMakerSpecDraft, formatComponentMakerVariantDraft } from './plugins/component-maker';
 import type { ComponentMakerContext, ComponentMakerEditablePart, ComponentMakerSpecDraft, ComponentMakerVariantDraft, ComponentMakerVariantItem } from './plugins/component-maker';
 
@@ -207,40 +215,6 @@ type ComponentPurposeOption = {
   slotLabel: string;
   hint: string;
   group: ComponentTypeGroup;
-};
-
-type StructuralChildGroup = {
-  key: string;
-  label: string;
-  count: number;
-  items: Array<{
-    label: string;
-    value: string;
-    element: Element;
-  }>;
-};
-
-type PageShellSection = {
-  key: string;
-  label: string;
-  kind: string;
-  selector: string;
-  element: Element;
-};
-
-type CollectionLayoutItem = {
-  key: string;
-  label: string;
-  selector: string;
-  element: Element;
-};
-
-type CollectionLayoutInfo = {
-  layoutLabel: string;
-  itemLabel: string;
-  itemCount: number;
-  totalCount: number;
-  items: CollectionLayoutItem[];
 };
 
 const COMPONENT_TYPE_GROUP_LABELS: Record<ComponentTypeGroup, string> = {
@@ -655,7 +629,6 @@ const TEXT_ONLY_TAGS = new Set([
 const TEXT_SEMANTIC_CLASS_RE = /(^|[-_])(caption|copy|desc|description|eyebrow|heading|label|subtitle|text|title)([-_]|$)/i;
 const STRUCTURAL_CONTAINER_CLASS_RE = /(^|[-_])(area|block|card|container|content|group|grid|item|layout|list|panel|row|section|shell|stack|zone)([-_]|$)/i;
 const PAGE_SHELL_CLASS_RE = /(^|[-_])(app|page|root|screen|shell|workspace)([-_]|$)/i;
-const COLLECTION_LAYOUT_CLASS_RE = /(^|[-_])(collection|columns|deck|feed|grid|list|matrix|rail|row|stack|track)([-_]|$)/i;
 const TEXT_GROUP_EXCLUDED_SELECTOR = [
   'button',
   'input',
@@ -790,176 +763,6 @@ function getVisibleDirectChildCount(el: Element): number {
 function canControlElementGap(el: Element): boolean {
   const cs = getComputedStyle(el);
   return isFlexGridDisplay(cs.display) && getVisibleDirectChildCount(el) >= 2;
-}
-
-function getPageSectionKind(el: Element): string {
-  const tag = el.tagName.toLowerCase();
-  const classText = getClasses(el).join(' ').toLowerCase();
-  if (/hero|masthead|banner/.test(classText)) return 'Hero';
-  if (/action|toolbar|button/.test(classText)) return 'Actions';
-  if (/component|example/.test(classText)) return 'Components';
-  if (/plain|content|block|section/.test(classText)) return 'Section';
-  if (tag === 'form' || /form|field/.test(classText)) return 'Form';
-  if (tag === 'nav' || /nav|menu/.test(classText)) return 'Navigation';
-  return 'Section';
-}
-
-function getPageSectionLabel(el: Element, index: number): string {
-  const heading = el.querySelector('h1, h2, h3, [data-di-slot="title"], [class*="title"], [class*="heading"]');
-  const text = (heading?.textContent ?? '').trim().replace(/\s+/g, ' ');
-  if (text) return text;
-  return `${getPageSectionKind(el)} ${index + 1}`;
-}
-
-function getPageShellSections(el: Element): PageShellSection[] {
-  return Array.from(el.children)
-    .filter(isInspectableChildElement)
-    .slice(0, 8)
-    .map((child, index) => ({
-      key: `page-section-${index}`,
-      label: getPageSectionLabel(child, index),
-      kind: getPageSectionKind(child),
-      selector: getSelectorForScope(child, 'current'),
-      element: child,
-    }));
-}
-
-function getStructuralChildType(el: Element): { key: string; label: string } | null {
-  const meta = getInspectorComponentMeta(el);
-  if (meta?.type === 'Button') return { key: 'button', label: '按钮' };
-  if (meta?.type === 'Badge') return { key: 'badge', label: '标签' };
-  if (meta?.type === 'Control') return { key: 'input', label: '输入' };
-  if (meta?.type === 'Icon') return { key: 'icon', label: '图标' };
-
-  const tag = el.tagName.toLowerCase();
-  const classes = getClasses(el).join(' ');
-  if (/^h[1-6]$/.test(tag) || /(^|[-_])(title|heading)([-_]|$)/i.test(classes)) {
-    return { key: 'title', label: '标题' };
-  }
-  if (tag === 'p' || /(^|[-_])(desc|description|copy|body|subtitle)([-_]|$)/i.test(classes)) {
-    return { key: 'body', label: '正文' };
-  }
-  if (tag === 'a') return { key: 'link', label: '链接' };
-  if (tag === 'label') return { key: 'label', label: '标签文案' };
-  if (tag === 'input' || tag === 'textarea' || tag === 'select') return { key: 'input', label: '输入' };
-
-  const ownText = getTextContent(el);
-  if (ownText) return { key: 'text', label: '文本' };
-  return null;
-}
-
-function getStructuralChildGroups(el: Element): StructuralChildGroup[] {
-  const grouped = new Map<string, StructuralChildGroup>();
-  const candidates = Array.from(el.querySelectorAll('*'))
-    .filter(isInspectableChildElement)
-    .filter(child => !child.querySelector('button, input, textarea, select, h1, h2, h3, h4, h5, h6, p, a, label, [data-di-slot], .badge, .tag, .chip'));
-
-  candidates.forEach(child => {
-    const type = getStructuralChildType(child);
-    if (!type) return;
-    const value = (child.textContent ?? '').trim().replace(/\s+/g, ' ');
-    if (!value && type.key !== 'input' && type.key !== 'icon') return;
-    const group = grouped.get(type.key) ?? {
-      key: type.key,
-      label: type.label,
-      count: 0,
-      items: [],
-    };
-    group.count += 1;
-    if (group.items.length < 4) {
-      group.items.push({
-        label: getElementDisplayName(child),
-        value: value || type.label,
-        element: child,
-      });
-    }
-    grouped.set(type.key, group);
-  });
-
-  return Array.from(grouped.values()).sort((a, b) => {
-    const order = ['title', 'body', 'text', 'button', 'link', 'badge', 'input', 'icon', 'label'];
-    return order.indexOf(a.key) - order.indexOf(b.key);
-  });
-}
-
-function getCollectionItemSignature(el: Element): { key: string; label: string } | null {
-  const meta = getInspectorComponentMeta(el);
-  if (meta) {
-    const label = getComponentDisplayName(meta);
-    return { key: `component:${meta.type}:${label}`, label };
-  }
-
-  const tag = el.tagName.toLowerCase();
-  const semanticClass = getClasses(el).find(className =>
-    !isStateClass(className)
-    && !/^lucide(-|$)/.test(className)
-    && STRUCTURAL_CONTAINER_CLASS_RE.test(className)
-  );
-  if (semanticClass) return { key: `class:${semanticClass}`, label: getElementDisplayName(el) };
-  if (tag === 'article' || tag === 'li') return { key: `tag:${tag}`, label: getElementDisplayName(el) };
-  return null;
-}
-
-function getCollectionLayoutLabel(el: Element, display: string): string {
-  const tag = el.tagName.toLowerCase();
-  const classes = getClasses(el);
-  if (display.includes('grid') || classes.some(className => /(^|[-_])(grid|matrix|columns)([-_]|$)/i.test(className))) return 'Grid';
-  if (tag === 'ul' || tag === 'ol' || classes.some(className => /(^|[-_])(list|feed)([-_]|$)/i.test(className))) return 'List';
-  if (display.includes('flex') || classes.some(className => /(^|[-_])(row|stack|rail|track)([-_]|$)/i.test(className))) return 'Flex';
-  return 'Layout';
-}
-
-function getCollectionItemLabel(el: Element, fallbackLabel: string, index: number): string {
-  const heading = el.querySelector('h1, h2, h3, [data-di-slot="title"], [class*="title"], [class*="heading"]');
-  const text = (heading?.textContent ?? '').trim().replace(/\s+/g, ' ');
-  return text || `${fallbackLabel} ${index + 1}`;
-}
-
-function getCollectionLayoutInfo(el: Element): CollectionLayoutInfo | null {
-  if (getInspectorComponentMeta(el)) return null;
-  if (isTextOnlyTargetElement(el)) return null;
-  if (el === document.documentElement || el === document.body) return null;
-
-  const tag = el.tagName.toLowerCase();
-  const cs = getComputedStyle(el);
-  const hasCollectionLayoutClass = getClasses(el).some(className =>
-    !isStateClass(className) && COLLECTION_LAYOUT_CLASS_RE.test(className)
-  );
-  const isLayoutish = isFlexGridDisplay(cs.display)
-    || tag === 'ul'
-    || tag === 'ol'
-    || hasCollectionLayoutClass;
-  if (!isLayoutish) return null;
-
-  const children = Array.from(el.children).filter(isInspectableChildElement);
-  if (children.length < 2) return null;
-
-  const grouped = new Map<string, { label: string; items: Element[] }>();
-  children.forEach(child => {
-    const signature = getCollectionItemSignature(child);
-    if (!signature) return;
-    const group = grouped.get(signature.key) ?? { label: signature.label, items: [] };
-    group.items.push(child);
-    grouped.set(signature.key, group);
-  });
-
-  const repeated = Array.from(grouped.values())
-    .filter(group => group.items.length >= 2)
-    .sort((a, b) => b.items.length - a.items.length)[0];
-  if (!repeated) return null;
-
-  return {
-    layoutLabel: getCollectionLayoutLabel(el, cs.display),
-    itemLabel: repeated.label,
-    itemCount: repeated.items.length,
-    totalCount: children.length,
-    items: repeated.items.slice(0, 8).map((item, index) => ({
-      key: `collection-item-${index}`,
-      label: getCollectionItemLabel(item, repeated.label, index),
-      selector: getSelectorForScope(item, 'current'),
-      element: item,
-    })),
-  };
 }
 
 function classSelector(classes: string[]): string {
@@ -1212,6 +1015,193 @@ type IconColorKey = 'default' | 'muted' | 'brand' | 'success' | 'warning' | 'dan
 type BadgeStatusKey = 'default' | 'progress' | 'success' | 'warning' | 'danger';
 type CardVariantKey = 'default' | 'compact' | 'floating' | 'emphasis';
 type ComponentSizeKind = 'button' | 'icon' | 'badge';
+type DesignLibraryTab = 'tokens' | 'components' | 'changes' | 'usage';
+type DesignLibraryTokenUsageFilter = 'all' | 'used' | 'unused' | 'unknown';
+type DesignLibraryCrudAction = 'create' | 'update' | 'delete';
+type LibraryTokenCategory = 'all' | 'color' | 'typography' | 'appearance' | 'space' | 'radius' | 'shadow';
+type LibraryTokenItemCategory = Exclude<LibraryTokenCategory, 'all'>;
+type LibraryComponentCategory = 'all' | DevInspectorComponentPreviewCategory;
+type LibraryComponentItemCategory = Exclude<LibraryComponentCategory, 'all'>;
+
+type LibraryTokenItem = {
+  id: string;
+  category: LibraryTokenItemCategory;
+  categoryLabel: string;
+  name: string;
+  value: string;
+  usage: string;
+  status: string;
+  preview: 'color' | 'text' | 'appearance' | 'space' | 'radius' | 'shadow';
+  previewValue?: string;
+  rawValue?: string;
+  source?: 'system' | 'custom' | 'draft';
+};
+
+type LibraryTokenFormDraft = {
+  mode: Extract<DesignLibraryCrudAction, 'create' | 'update'>;
+  baseId?: string;
+  category: LibraryTokenItemCategory;
+  name: string;
+  value: string;
+  usage: string;
+  status: string;
+};
+
+type LibraryComponentItem = {
+  id: string;
+  category: LibraryComponentItemCategory;
+  categoryLabel: string;
+  type: string;
+  label: string;
+  summary: string;
+  selector: string;
+  status: string;
+  preview?: DevInspectorComponentPreview;
+  source?: 'system' | 'custom' | 'draft';
+};
+
+type LibraryComponentFormDraft = {
+  mode: Extract<DesignLibraryCrudAction, 'create' | 'update'>;
+  baseId?: string;
+  category: LibraryComponentItemCategory;
+  type: string;
+  label: string;
+  summary: string;
+  selector: string;
+  status: string;
+};
+
+type LibraryComponentSpecDetail = {
+  component: LibraryComponentItem;
+  variant: DevInspectorComponentPreviewVariant;
+  key: string;
+  selector: string;
+  purpose: string;
+  capabilities: string[];
+  tokenRefs: string[];
+  usageCount: number | null;
+};
+
+const LIBRARY_TOKEN_CATEGORIES: { key: LibraryTokenCategory; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'color', label: '颜色' },
+  { key: 'typography', label: '文字' },
+  { key: 'appearance', label: '外观' },
+  { key: 'space', label: '间距' },
+  { key: 'radius', label: '圆角' },
+  { key: 'shadow', label: '阴影' },
+];
+
+const LIBRARY_COMPONENT_CATEGORIES: { key: LibraryComponentCategory; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'action', label: '操作' },
+  { key: 'display', label: '展示' },
+  { key: 'feedback', label: '反馈' },
+  { key: 'container', label: '容器' },
+  { key: 'form', label: '表单' },
+  { key: 'icon', label: '图标' },
+  { key: 'custom', label: '自定义' },
+];
+
+const LIBRARY_COMPONENT_LABELS: Record<string, string> = {
+  Button: '按钮',
+  Icon: '图标',
+  Badge: '标签',
+  Card: '卡片',
+  Form: '表单',
+};
+
+function getLibraryComponentCategory(type: string): LibraryComponentItemCategory {
+  const normalized = type.trim().toLowerCase();
+  if (normalized.includes('button') || normalized.includes('action')) return 'action';
+  if (normalized.includes('badge') || normalized.includes('tag') || normalized.includes('chip')) return 'feedback';
+  if (normalized.includes('card') || normalized.includes('text') || normalized.includes('typography')) return 'display';
+  if (normalized.includes('form') || normalized.includes('input') || normalized.includes('textarea') || normalized.includes('control')) return 'form';
+  if (normalized.includes('icon')) return 'icon';
+  if (normalized.includes('container') || normalized.includes('layout') || normalized.includes('section') || normalized.includes('panel')) return 'container';
+  return 'custom';
+}
+
+function getLibraryComponentCategoryLabel(category: LibraryComponentItemCategory): string {
+  return LIBRARY_COMPONENT_CATEGORIES.find(item => item.key === category)?.label ?? '自定义';
+}
+
+function getLibraryComponentVariantKey(componentId: string, variantId: string): string {
+  return `${componentId}::${variantId}`;
+}
+
+function getLibraryComponentVariantPurpose(component: LibraryComponentItem, variant: DevInspectorComponentPreviewVariant): string {
+  if (variant.usage) return variant.usage;
+  const normalizedType = component.type.trim().toLowerCase();
+  const normalizedProps = (variant.propsLabel ?? '').toLowerCase();
+  if (normalizedType.includes('button')) {
+    if (normalizedProps.includes('primary')) return '主行动、关键提交、确认操作';
+    if (normalizedProps.includes('secondary')) return '次级操作、辅助确认、备用入口';
+    if (normalizedProps.includes('ghost')) return '低强调操作、工具区动作、弱边界按钮';
+    if (normalizedProps.includes('text')) return '轻量文本操作、链接式动作、局部补充入口';
+    return '操作触发、表单提交或流程推进';
+  }
+  if (normalizedType.includes('badge')) return '状态提示、分类标记和结果反馈';
+  if (normalizedType.includes('card')) return '信息分组、任务展示和内容承载';
+  if (normalizedType.includes('form')) return '信息录入、编辑和提交';
+  if (normalizedType.includes('icon')) return '图形化操作入口或状态表达';
+  return component.summary || '组件规格展示和复用治理';
+}
+
+function getLibraryComponentVariantCapabilities(component: LibraryComponentItem, variant: DevInspectorComponentPreviewVariant): string[] {
+  if (variant.capabilities?.length) return variant.capabilities;
+  const capability = COMPONENT_CAPABILITIES[component.type];
+  const normalizedType = component.type.trim().toLowerCase();
+  const capabilities = new Set<string>();
+  if (capability?.variantKind || variant.propsLabel?.includes('variant=')) capabilities.add('变体');
+  if (capability?.sizeKind || variant.propsLabel?.includes('size=')) capabilities.add('尺寸');
+  if (capability?.statusKind || variant.propsLabel?.includes('status=')) capabilities.add('状态');
+  if (capability?.colorKind || variant.propsLabel?.includes('tone=')) capabilities.add('颜色');
+  if (capability?.editableText || capability?.textSlots?.length) capabilities.add('文案');
+  if (capability?.childSlots?.length) capabilities.add('子项');
+  if (normalizedType.includes('button')) {
+    capabilities.add('点击');
+    capabilities.add('hover');
+    capabilities.add('focus-visible');
+    capabilities.add('disabled 待接入');
+  }
+  if (normalizedType.includes('form')) {
+    capabilities.add('输入');
+    capabilities.add('提交');
+  }
+  if (!capabilities.size) capabilities.add('预览');
+  return Array.from(capabilities);
+}
+
+function getLibraryComponentVariantTokenRefs(component: LibraryComponentItem, variant: DevInspectorComponentPreviewVariant): string[] {
+  if (variant.tokenRefs?.length) return variant.tokenRefs;
+  const normalizedType = component.type.trim().toLowerCase();
+  const normalizedProps = (variant.propsLabel ?? '').toLowerCase();
+  const refs = new Set<string>();
+  if (normalizedType.includes('button')) {
+    refs.add('--radius-control');
+    refs.add('--font-size-m');
+    if (normalizedProps.includes('size=s')) refs.add('--font-size-s');
+    if (normalizedProps.includes('size=l')) refs.add('--font-size-l');
+    if (normalizedProps.includes('primary')) refs.add('--color-brand-primary');
+    if (normalizedProps.includes('secondary') || normalizedProps.includes('ghost')) refs.add('--color-border-default');
+    if (normalizedProps.includes('text')) refs.add('--color-brand-primary');
+  } else if (normalizedType.includes('badge')) {
+    refs.add('--radius-pill');
+    refs.add('--font-size-xs');
+  } else if (normalizedType.includes('card')) {
+    refs.add('--color-surface');
+    refs.add('--color-border-default');
+    refs.add('--shadow-card');
+  } else if (normalizedType.includes('form')) {
+    refs.add('--color-surface');
+    refs.add('--color-border-default');
+    refs.add('--radius-control');
+  } else if (normalizedType.includes('icon')) {
+    refs.add('--color-icon-default');
+  }
+  return Array.from(refs);
+}
 
 type ComponentTextSlotDefinition = {
   key: string;
@@ -2368,6 +2358,7 @@ function ColorDropdown({ value, onChange, onClose, onAddToken, pos, colorPalette
   const initHex = value.startsWith('#') ? value : '#6b7280';
   const [hexInput, setHexInput] = useState(initHex);
   const [alpha, setAlpha]       = useState(100);
+  const customColorInputRef = useRef<HTMLInputElement | null>(null);
 
   function buildColor(hex: string, a: number): string {
     const m = hex.match(/^#([0-9a-f]{6})$/i);
@@ -2403,10 +2394,11 @@ function ColorDropdown({ value, onChange, onClose, onAddToken, pos, colorPalette
                 {g.colors.map(c => (
                   <button key={c.token}
                     className={`di-palette-swatch${value === c.val ? ' di-palette-swatch--on' : ''}`}
-                    style={{ background: c.val }}
                     title={`${g.group}·${c.label}  ${c.val}`}
                     onClick={() => { onChange(c.val, c.token); onClose(); }}
-                  />
+                  >
+                    <span className="di-palette-swatch-fill" style={{ background: c.val }} />
+                  </button>
                 ))}
                 {onAddToken && (
                   <button className="di-palette-add-btn" title={`添加为${g.group}色 token`}
@@ -2421,8 +2413,24 @@ function ColorDropdown({ value, onChange, onClose, onAddToken, pos, colorPalette
 
         {/* 自定义底部：色块 + [#][hex] + [alpha][%] */}
         <div className="di-custom-bottom">
-          <button className="di-custom-color-trigger" style={{ background: buildColor(hexInput, alpha), flexShrink: 0 }}
-            onClick={() => {}} />
+          <button
+            className="di-custom-color-trigger"
+            style={{ background: buildColor(hexInput, alpha), flexShrink: 0 }}
+            title="选择自定义颜色"
+            onClick={() => customColorInputRef.current?.click()}
+          />
+          <input
+            ref={customColorInputRef}
+            className="di-custom-color-input"
+            type="color"
+            value={/^#[0-9a-f]{6}$/i.test(hexInput) ? hexInput : '#6b7280'}
+            aria-label="选择自定义颜色"
+            onChange={event => {
+              const h = event.currentTarget.value;
+              setHexInput(h);
+              applyColor(h, alpha);
+            }}
+          />
           {/* hex 输入，# 是灰色前缀 */}
           <div className="di-field-wrap">
             <span className="di-field-prefix">#</span>
@@ -2604,6 +2612,191 @@ function getDisplayLabel(
   return { label: displayVal, sub: '', isHardcoded: true };
 }
 
+function normalizeLibraryTokenName(value: string): string {
+  return value.replace(/^--/, '').replace(/-/g, '·');
+}
+
+function getLibraryTokenItems(
+  tokens: DevInspectorTokenConfig,
+  tokenMap: Record<string, string>,
+): LibraryTokenItem[] {
+  const items: LibraryTokenItem[] = [];
+  const seen = new Set<string>();
+  const add = (item: LibraryTokenItem) => {
+    const key = `${item.category}:${item.name}:${item.value}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    items.push(item);
+  };
+
+  tokens.colorPalette.forEach(group => {
+    group.colors.forEach(color => add({
+      id: `color:${group.group}:${color.token || color.label}`,
+      category: 'color',
+      categoryLabel: '颜色',
+      name: color.token || `${group.group}.${color.label}`,
+      value: formatColorDisplay(color.val),
+      rawValue: color.val,
+      usage: `${group.group} / ${color.label}`,
+      status: '系统 token',
+      preview: 'color',
+      previewValue: color.val,
+      source: 'system',
+    }));
+  });
+
+  Object.entries(tokenMap).forEach(([value, token]) => {
+    if (!token || seen.has(`color:${token}:${formatColorDisplay(value)}`)) return;
+    if (!/^#|rgb|hsl/i.test(value.trim())) return;
+    add({
+      id: `custom-color:${token}:${value}`,
+      category: 'color',
+      categoryLabel: '颜色',
+      name: token,
+      value: formatColorDisplay(value),
+      rawValue: value,
+      usage: normalizeLibraryTokenName(token),
+      status: '自定义 token',
+      preview: 'color',
+      previewValue: value,
+      source: 'custom',
+    });
+  });
+
+  (tokens.typographyStyles ?? []).forEach(style => add({
+    id: `typography-style:${style.key}`,
+    category: 'typography',
+    categoryLabel: '文字',
+    name: style.key,
+    value: `${style.value} / ${style.fontWeight}`,
+    rawValue: style.value,
+    usage: style.usage || style.label,
+    status: '系统 token',
+    preview: 'text',
+    previewValue: style.color,
+    source: 'system',
+  }));
+
+  tokens.typographyTokens.forEach(token => add({
+    id: `typography-token:${token.key}`,
+    category: 'typography',
+    categoryLabel: '文字',
+    name: token.key,
+    value: `${token.fontSize} / ${token.fontWeight}`,
+    rawValue: token.fontSize,
+    usage: token.usage || token.label,
+    status: '系统 token',
+    preview: 'text',
+    previewValue: token.color,
+    source: 'system',
+  }));
+
+  getContainerStyles(tokens).forEach(style => add({
+    id: `appearance:${style.key}`,
+    category: 'appearance',
+    categoryLabel: '外观',
+    name: style.key,
+    value: `${style.backgroundVar || formatColorDisplay(style.backgroundColor)} / ${style.borderWidth} / ${style.borderStyle} / ${style.borderRadius}`,
+    rawValue: style.backgroundColor,
+    usage: style.usage || style.label,
+    status: '系统 token',
+    preview: 'appearance',
+    previewValue: style.borderColor || style.backgroundColor,
+    source: 'system',
+  }));
+
+  tokens.spaceSteps.forEach(step => add({
+    id: `space:${step.label}:${step.val}`,
+    category: 'space',
+    categoryLabel: '间距',
+    name: step.label,
+    value: step.val,
+    rawValue: step.val,
+    usage: step.size || '空值 / 无间距',
+    status: '系统 token',
+    preview: 'space',
+    source: 'system',
+  }));
+
+  tokens.radiusPresets.forEach(radius => add({
+    id: `radius:${radius.label}:${radius.value}`,
+    category: 'radius',
+    categoryLabel: '圆角',
+    name: radius.token || radius.label,
+    value: radius.value,
+    rawValue: radius.value,
+    usage: radius.sub || '无圆角',
+    status: '系统 token',
+    preview: 'radius',
+    source: 'system',
+  }));
+
+  tokens.shadowTokens.forEach(shadow => add({
+    id: `shadow:${shadow.cssVar || shadow.label}`,
+    category: 'shadow',
+    categoryLabel: '阴影',
+    name: shadow.cssVar || shadow.label,
+    value: shadow.value,
+    rawValue: shadow.value,
+    usage: shadow.usage,
+    status: '系统 token',
+    preview: 'shadow',
+    source: 'system',
+  }));
+
+  return items;
+}
+
+const LIBRARY_TOKEN_USAGE_PROPS: Record<LibraryTokenItemCategory, string[]> = {
+  color: ['color', 'background-color', 'border-color'],
+  typography: ['font-size'],
+  appearance: ['background-color', 'border-color', 'border-radius'],
+  space: ['padding-top', 'padding-right', 'padding-bottom', 'padding-left', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left', 'gap'],
+  radius: ['border-radius'],
+  shadow: ['box-shadow'],
+};
+
+function getLibraryTokenUsageTargets(item: LibraryTokenItem): Element[] | null {
+  if (!item.rawValue || item.rawValue.includes('var(')) return null;
+  const needle = item.category === 'color' || item.category === 'appearance'
+    ? normalizeColor(item.rawValue)
+    : item.rawValue.trim();
+  if (!needle || needle === 'transparent') return null;
+
+  const props = LIBRARY_TOKEN_USAGE_PROPS[item.category] ?? [];
+  const targets: Element[] = [];
+  if (typeof document === 'undefined') return targets;
+  document.querySelectorAll('body *').forEach(el => {
+    if (isInsidePanel(el)) return;
+    const cs = getComputedStyle(el);
+    if (props.some(prop => {
+      const value = cs.getPropertyValue(prop).trim();
+      const normalized = item.category === 'color' || item.category === 'appearance'
+        ? normalizeColor(value)
+        : value;
+      return normalized === needle;
+    })) targets.push(el);
+  });
+  return targets;
+}
+
+function countLibraryTokenUsage(item: LibraryTokenItem): number | null {
+  return getLibraryTokenUsageTargets(item)?.length ?? null;
+}
+
+function getComponentCapabilitySummary(type: string, capability: ComponentCapability): string {
+  const parts = [
+    capability.editableText ? '文案' : '',
+    capability.variantKind ? (capability.variantKind === 'card' ? '展示' : '变体') : '',
+    capability.sizeKind ? '尺寸' : '',
+    capability.colorKind ? '颜色' : '',
+    capability.statusKind ? '状态' : '',
+    capability.textSlots?.length ? '可编辑内容' : '',
+    capability.childSlots?.length ? '子组件入口' : '',
+  ].filter(Boolean);
+  return parts.join(' / ') || `${type} 识别`;
+}
+
 function ColorSelectButton({
   value,
   label,
@@ -2743,15 +2936,17 @@ export function InspectorPanel({
   targetEl,
   tokenMap,
   onTokenMapUpdate,
+  onTargetChange,
   onClose,
 }: {
   targetEl: Element;
   tokenMap: Record<string, string>;
   onTokenMapUpdate: (updates: Record<string, string>) => void;
+  onTargetChange: (el: Element) => void;
   onClose: () => void;
 }) {
   const isSecondary = false;
-  const { endpoints, tokens } = useDevInspectorConfig();
+  const { componentPreviews, endpoints, tokens } = useDevInspectorConfig();
   const {
     colorPalette,
     tokenLabels,
@@ -2882,8 +3077,6 @@ export function InspectorPanel({
   const [componentVariantDraft, setComponentVariantDraft] = useState<ComponentMakerVariantDraft>(EMPTY_COMPONENT_VARIANT_DRAFT);
   const [componentVariantExcludedIds, setComponentVariantExcludedIds] = useState<string[]>([]);
   const [componentVariantPreviewId, setComponentVariantPreviewId] = useState('');
-  const [structuralStyleOpen, setStructuralStyleOpen] = useState(false);
-  const [structuralChildrenOpen, setStructuralChildrenOpen] = useState(false);
   const [localDrafts, setLocalDrafts] = useState<Record<string, LocalDraftEntry>>({});
   const [styleIntentSummary, setStyleIntentSummary] = useState<StyleIntentSummary>({ pendingCount: 0, latestPending: null, pendingEntries: [] });
   const [activePlugin, setActivePlugin] = useState<InspectorPluginMode | null>(null);
@@ -2892,6 +3085,24 @@ export function InspectorPanel({
   const [expandedColor, setExpandedColor] = useState<string | null>(null);
   const [pendingNewToken, setPendingNewToken] = useState<{ cssVar: string; value: string; usage: string } | null>(null);
   const [addTokenModal, setAddTokenModal] = useState<{ value: string; cssProp?: string } | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [libraryWorkbenchOpen, setLibraryWorkbenchOpen] = useState(false);
+  const [libraryTab, setLibraryTab] = useState<DesignLibraryTab>('tokens');
+  const [libraryTokenCategory, setLibraryTokenCategory] = useState<LibraryTokenCategory>('all');
+  const [libraryComponentCategory, setLibraryComponentCategory] = useState<LibraryComponentCategory>('all');
+  const [libraryTokenUsageFilter, setLibraryTokenUsageFilter] = useState<DesignLibraryTokenUsageFilter>('all');
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [selectedLibraryTokenId, setSelectedLibraryTokenId] = useState('');
+  const [selectedLibraryComponentId, setSelectedLibraryComponentId] = useState('');
+  const [selectedLibraryComponentVariantId, setSelectedLibraryComponentVariantId] = useState('');
+  const [libraryTokenForm, setLibraryTokenForm] = useState<LibraryTokenFormDraft | null>(null);
+  const [libraryComponentForm, setLibraryComponentForm] = useState<LibraryComponentFormDraft | null>(null);
+  const [libraryCustomTokens, setLibraryCustomTokens] = useState<LibraryTokenItem[]>([]);
+  const [libraryTokenOverrides, setLibraryTokenOverrides] = useState<Record<string, Partial<LibraryTokenItem>>>({});
+  const [libraryDeletedTokenIds, setLibraryDeletedTokenIds] = useState<Record<string, string>>({});
+  const [libraryCustomComponents, setLibraryCustomComponents] = useState<LibraryComponentItem[]>([]);
+  const [libraryComponentOverrides, setLibraryComponentOverrides] = useState<Record<string, Partial<LibraryComponentItem>>>({});
+  const [libraryDeletedComponentIds, setLibraryDeletedComponentIds] = useState<Record<string, string>>({});
   const [customColorVals, setCustomColorVals] = useState<Record<string, string>>({});
   const selectedRef = useRef<Element>(targetEl);
   const localDraftsRef = useRef<Record<string, LocalDraftEntry>>({});
@@ -2942,14 +3153,10 @@ export function InspectorPanel({
   function getDraftTargetInfo(el: Element): Pick<LocalDraftEntry, 'key' | 'selector' | 'targetLabel' | 'scopeLabel'> {
     const componentMeta = getInspectorComponentMeta(el);
     const selector = getSelectorForScope(el, scope);
-    const collectionLayoutInfo = getCollectionLayoutInfo(el);
-    const targetLabel = collectionLayoutInfo
-      ? `布局 / ${getElementDisplayName(el, componentMeta)}`
-      : getTargetDisplayLabel(el, componentMeta);
     return {
       key: `${scope}:${selector}`,
       selector,
-      targetLabel,
+      targetLabel: getTargetDisplayLabel(el, componentMeta),
       scopeLabel: scope === 'current' ? '当前元素' : '相同元素',
     };
   }
@@ -2968,6 +3175,7 @@ export function InspectorPanel({
     selectedRef.current = el;
     const rect = el.getBoundingClientRect();
     setPanelPos(calcPanelPos(rect));
+    if (el !== targetEl) onTargetChange(el);
 
     // 读颜色
     const elCs = getComputedStyle(el);
@@ -3131,8 +3339,6 @@ export function InspectorPanel({
     setComponentCreateType(getSuggestedComponentCreatePurposeType(el, suggestedCreateContainer));
     setComponentCreatePurpose(getSuggestedComponentPurpose(el));
     setComponentCreateOpen(false);
-    setStructuralStyleOpen(false);
-    setStructuralChildrenOpen(false);
     setComponentVariantDraft(getComponentMakerVariantDefaults(el));
     setComponentVariantExcludedIds([]);
     setComponentVariantPreviewId('');
@@ -3141,7 +3347,7 @@ export function InspectorPanel({
     setShowScopeHelp(false);
     setIsEditing(false); // 选中新元素时重置为查看模式
     setSelected(el);
-  }, []);
+  }, [onTargetChange, targetEl]);
 
   // targetEl 变化时读取样式（包含初始化）
   useEffect(() => { selectEl(targetEl); }, [targetEl]); // eslint-disable-line
@@ -4508,58 +4714,9 @@ export function InspectorPanel({
     };
   }
 
-  function buildPageShellSpecValue(el: Element): string {
-    const sections = getPageShellSections(el);
-    const cs = getComputedStyle(el);
-    const gap = cs.gap.trim() === 'normal' ? '0px' : cs.gap.trim();
-    const sectionSummary = sections.length
-      ? sections.map(section => `${section.kind}：${section.label}（${section.selector}）`).join('；')
-      : '未识别到页面区块';
-
-    return [
-      '类型：页面规格',
-      `页面容器：${getElementDisplayName(el)}`,
-      `区块：${sectionSummary}`,
-      `布局：宽 ${formatLengthControlValue(cs.width)} / 高 ${formatLengthControlValue(cs.height)}；内边距 ${formatLengthControlValue(cs.paddingTop)} ${formatLengthControlValue(cs.paddingRight)} ${formatLengthControlValue(cs.paddingBottom)} ${formatLengthControlValue(cs.paddingLeft)}；区块间距 ${formatLengthControlValue(gap)}`,
-      '目标：整理页面结构，按 section 拆分为可维护区块；不要把整个页面封装成单个组件',
-      '约束：保留业务逻辑；优先复用 token；不要手改 dist',
-    ].join('；');
-  }
-
-  function buildPageShellDraftEntry(el: Element): LocalDraftEntry {
-    const selector = getSelectorForScope(el, 'current');
-    const key = `page:${selector}`;
-    const existing = localDraftsRef.current[key];
-    const existingByProp = new Map(existing?.changes.map(change => [change.prop, change]) ?? []);
-    const mergedByProp = new Map<string, LocalDraftChange>();
-    existing?.changes.forEach(change => mergedByProp.set(change.prop, change));
-    const previous = existingByProp.get('page-spec');
-    mergedByProp.set('page-spec', {
-      prop: 'page-spec',
-      from: previous?.from ?? '未记录',
-      val: buildPageShellSpecValue(el),
-    });
-    return {
-      key,
-      selector,
-      targetLabel: `页面 / ${getElementDisplayName(el)}`,
-      scopeLabel: '当前页面',
-      changes: Array.from(mergedByProp.values()),
-      updatedAt: Date.now(),
-    };
-  }
-
-  function handleSendPageShellSpecToAi() {
-    const el = selectedRef.current;
-    if (!el) return;
-    const nextEntry = buildPageShellDraftEntry(el);
-    const nextDrafts = { ...localDraftsRef.current, [nextEntry.key]: nextEntry };
-    setLocalDrafts(nextDrafts);
-    copyDraftEntriesToAi(Object.values(nextDrafts));
-  }
-
   function openComponentCreateDrawer() {
     const el = selectedRef.current;
+    setLibraryOpen(false);
     const defaults = getComponentMakerSpecDefaults(el);
     const suggestedContainer = getSuggestedComponentContainer(el);
     const suggestedType = getSuggestedComponentCreatePurposeType(el, suggestedContainer);
@@ -4729,6 +4886,261 @@ export function InspectorPanel({
     setTimeout(() => setPluginMsg(''), 2200);
   }
 
+  function recordLibraryCrudChange(params: {
+    resource: 'token' | 'component';
+    action: DesignLibraryCrudAction;
+    name: string;
+    from: string;
+    val: string;
+  }) {
+    const actionLabel = params.action === 'create' ? '新增' : params.action === 'update' ? '编辑' : '删除';
+    const safeName = params.name.trim() || '未命名';
+    const prop = `library-${params.resource}:${params.action}:${safeName}`;
+    const info: Pick<LocalDraftEntry, 'key' | 'selector' | 'targetLabel' | 'scopeLabel'> = {
+      key: 'library:design-library',
+      selector: 'Library / 设计库',
+      targetLabel: 'Library / 设计库',
+      scopeLabel: '设计库',
+    };
+    setLocalDrafts(prev => {
+      const existing = prev[info.key];
+      const mergedByProp = new Map<string, LocalDraftChange>();
+      existing?.changes.forEach(change => mergedByProp.set(change.prop, change));
+      mergedByProp.set(prop, {
+        prop,
+        from: params.from,
+        val: `${actionLabel}：${params.val}`,
+      });
+      return {
+        ...prev,
+        [info.key]: {
+          ...info,
+          changes: Array.from(mergedByProp.values()),
+          updatedAt: Date.now(),
+        },
+      };
+    });
+  }
+
+  function getLibraryTokenPreviewKind(category: LibraryTokenItemCategory): LibraryTokenItem['preview'] {
+    if (category === 'typography') return 'text';
+    if (category === 'radius') return 'radius';
+    if (category === 'shadow') return 'shadow';
+    if (category === 'space') return 'space';
+    if (category === 'appearance') return 'appearance';
+    return 'color';
+  }
+
+  function getLibraryTokenCategoryLabel(category: LibraryTokenItemCategory): string {
+    return LIBRARY_TOKEN_CATEGORIES.find(item => item.key === category)?.label ?? category;
+  }
+
+  function formatLibraryTokenSummary(item: Pick<LibraryTokenItem, 'categoryLabel' | 'name' | 'value' | 'usage' | 'status'>): string {
+    return `${item.categoryLabel} / ${item.name} / ${item.value} / ${item.usage || '未登记用途'} / ${item.status}`;
+  }
+
+  function buildLibraryTokenItemFromForm(form: LibraryTokenFormDraft): LibraryTokenItem {
+    const categoryLabel = getLibraryTokenCategoryLabel(form.category);
+    return {
+      id: form.baseId || `draft-token:${Date.now()}:${form.name}`,
+      category: form.category,
+      categoryLabel,
+      name: form.name.trim(),
+      value: form.value.trim(),
+      rawValue: form.value.trim(),
+      usage: form.usage.trim() || '未登记用途',
+      status: form.status.trim() || (form.mode === 'create' ? '新增草稿' : '编辑草稿'),
+      preview: getLibraryTokenPreviewKind(form.category),
+      previewValue: form.value.trim(),
+      source: 'draft',
+    };
+  }
+
+  function openLibraryTokenCreate() {
+    const fallbackValue = pendingTextColor || textColorVal || Object.values(pendingColors)[0] || '#111827';
+    setLibraryTokenForm({
+      mode: 'create',
+      category: 'color',
+      name: '--color-custom',
+      value: fallbackValue,
+      usage: '用于当前页面样式',
+      status: '新增草稿',
+    });
+  }
+
+  function openLibraryTokenEdit(item: LibraryTokenItem) {
+    setSelectedLibraryTokenId(item.id);
+    setLibraryTokenForm({
+      mode: 'update',
+      baseId: item.id,
+      category: item.category,
+      name: item.name,
+      value: item.rawValue || item.value,
+      usage: item.usage,
+      status: item.status.includes('草稿') ? item.status : '编辑草稿',
+    });
+  }
+
+  function submitLibraryTokenForm() {
+    if (!libraryTokenForm) return;
+    const nextItem = buildLibraryTokenItemFromForm(libraryTokenForm);
+    if (!nextItem.name || !nextItem.value) return;
+    if (libraryTokenForm.mode === 'create') {
+      setLibraryCustomTokens(prev => [nextItem, ...prev]);
+      setSelectedLibraryTokenId(nextItem.id);
+      recordLibraryCrudChange({
+        resource: 'token',
+        action: 'create',
+        name: nextItem.name,
+        from: '未登记',
+        val: formatLibraryTokenSummary(nextItem),
+      });
+    } else {
+      setLibraryTokenOverrides(prev => ({ ...prev, [nextItem.id]: { ...nextItem, status: '编辑草稿', source: 'draft' } }));
+      setSelectedLibraryTokenId(nextItem.id);
+      const original = libraryTokenItems.find(item => item.id === nextItem.id);
+      recordLibraryCrudChange({
+        resource: 'token',
+        action: 'update',
+        name: nextItem.name,
+        from: original ? formatLibraryTokenSummary(original) : '未登记',
+        val: formatLibraryTokenSummary({ ...nextItem, status: '编辑草稿' }),
+      });
+    }
+    setLibraryTokenForm(null);
+  }
+
+  function deleteLibraryToken(item: LibraryTokenItem) {
+    const usageCount = countLibraryTokenUsage(item);
+    const deleteHint = usageCount === null
+      ? '删除草稿（使用情况无法统计，需 AI 复核）'
+      : usageCount > 0
+        ? `删除草稿（${usageCount} 处使用，需先替换）`
+        : '删除草稿（未使用）';
+    if (item.source === 'draft') {
+      setLibraryCustomTokens(prev => prev.filter(token => token.id !== item.id));
+    } else {
+      setLibraryDeletedTokenIds(prev => ({ ...prev, [item.id]: deleteHint }));
+    }
+    if (selectedLibraryTokenId === item.id) setSelectedLibraryTokenId('');
+    recordLibraryCrudChange({
+      resource: 'token',
+      action: 'delete',
+      name: item.name,
+      from: formatLibraryTokenSummary(item),
+      val: `${item.name} / ${deleteHint}`,
+    });
+  }
+
+  function focusLibraryTokenUsage(item: LibraryTokenItem) {
+    setSelectedLibraryTokenId(item.id);
+    const targets = getLibraryTokenUsageTargets(item);
+    if (targets === null) {
+      setSubmitMsg('该 token 暂无法统计使用');
+      setTimeout(() => setSubmitMsg(''), 1800);
+      return;
+    }
+    const target = targets[0];
+    if (!target) {
+      setSubmitMsg('当前页面未使用该 token');
+      setTimeout(() => setSubmitMsg(''), 1800);
+      return;
+    }
+    setLibraryWorkbenchOpen(false);
+    setLibraryOpen(false);
+    setComponentCreateOpen(false);
+    target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    selectEl(target);
+    setSubmitMsg(`已定位 1 / ${targets.length}`);
+    setTimeout(() => setSubmitMsg(''), 1800);
+  }
+
+  function formatLibraryComponentSummary(item: Pick<LibraryComponentItem, 'categoryLabel' | 'type' | 'label' | 'summary' | 'selector' | 'status'>): string {
+    return `${item.label} / ${item.type} / ${item.categoryLabel} / ${item.summary || '未登记能力'} / ${item.selector || '未登记 selector'} / ${item.status}`;
+  }
+
+  function openLibraryComponentCreate() {
+    setLibraryComponentForm({
+      mode: 'create',
+      category: libraryComponentCategory === 'all' ? 'custom' : libraryComponentCategory,
+      type: 'Custom',
+      label: '自定义组件',
+      summary: '待补能力',
+      selector: '.custom-component',
+      status: '新增草稿',
+    });
+  }
+
+  function openLibraryComponentEdit(item: LibraryComponentItem) {
+    setSelectedLibraryComponentId(item.id);
+    setLibraryComponentForm({
+      mode: 'update',
+      baseId: item.id,
+      category: item.category,
+      type: item.type,
+      label: item.label,
+      summary: item.summary,
+      selector: item.selector,
+      status: item.status.includes('草稿') ? item.status : '编辑草稿',
+    });
+  }
+
+  function submitLibraryComponentForm() {
+    if (!libraryComponentForm) return;
+    const category = libraryComponentForm.category || getLibraryComponentCategory(libraryComponentForm.type);
+    const nextItem: LibraryComponentItem = {
+      id: libraryComponentForm.baseId || `draft-component:${Date.now()}:${libraryComponentForm.type}`,
+      category,
+      categoryLabel: getLibraryComponentCategoryLabel(category),
+      type: libraryComponentForm.type.trim() || 'Custom',
+      label: libraryComponentForm.label.trim() || libraryComponentForm.type.trim() || '自定义组件',
+      summary: libraryComponentForm.summary.trim() || '待补能力',
+      selector: libraryComponentForm.selector.trim() || '未登记 selector',
+      status: libraryComponentForm.status.trim() || (libraryComponentForm.mode === 'create' ? '新增草稿' : '编辑草稿'),
+      source: 'draft',
+    };
+    if (libraryComponentForm.mode === 'create') {
+      setLibraryCustomComponents(prev => [nextItem, ...prev]);
+      setSelectedLibraryComponentId(nextItem.id);
+      recordLibraryCrudChange({
+        resource: 'component',
+        action: 'create',
+        name: nextItem.type,
+        from: '未登记',
+        val: formatLibraryComponentSummary(nextItem),
+      });
+    } else {
+      setLibraryComponentOverrides(prev => ({ ...prev, [nextItem.id]: { ...nextItem, status: '编辑草稿', source: 'draft' } }));
+      setSelectedLibraryComponentId(nextItem.id);
+      const original = componentLibraryItems.find(item => item.id === nextItem.id);
+      recordLibraryCrudChange({
+        resource: 'component',
+        action: 'update',
+        name: nextItem.type,
+        from: original ? formatLibraryComponentSummary(original) : '未登记',
+        val: formatLibraryComponentSummary({ ...nextItem, status: '编辑草稿' }),
+      });
+    }
+    setLibraryComponentForm(null);
+  }
+
+  function deleteLibraryComponent(item: LibraryComponentItem) {
+    const deleteHint = item.source === 'draft' ? '删除新增草稿' : '删除规格草稿（不删除源码组件）';
+    if (item.source === 'draft') {
+      setLibraryCustomComponents(prev => prev.filter(component => component.id !== item.id));
+    } else {
+      setLibraryDeletedComponentIds(prev => ({ ...prev, [item.id]: deleteHint }));
+    }
+    if (selectedLibraryComponentId === item.id) setSelectedLibraryComponentId('');
+    recordLibraryCrudChange({
+      resource: 'component',
+      action: 'delete',
+      name: item.type,
+      from: formatLibraryComponentSummary(item),
+      val: `${item.type} / ${deleteHint}`,
+    });
+  }
+
   function buildAiTaskPrompt(params: {
     entryId?: string;
     pageLabel: string;
@@ -4741,13 +5153,9 @@ export function InspectorPanel({
     const changes = params.changes
       .map((change, index) => `${index + 1}. ${getChangeLabel(change.prop)}：${formatStoredChangeRecordValue(change.prop, change.from)} → ${formatStoredChangeRecordValue(change.prop, change.val)}`)
       .join('\n');
-    const isLayoutContainerTask = params.targetLabel.startsWith('布局 /');
     const latestHint = params.entryId
       ? `优先处理 id = ${params.entryId} 这条记录。`
       : '这条任务来自 DevInspector 当前选中元素。';
-    const taskHint = isLayoutContainerTask
-      ? `${latestHint} 该对象是重复集合或布局容器，只处理外层位置、尺寸、padding、gap 和对齐；不要修改子项内容、子组件样式或业务逻辑。`
-      : latestHint;
     return [
       'DevInspector 样式任务',
       `页面：${params.pageLabel}`,
@@ -4758,7 +5166,7 @@ export function InspectorPanel({
       changes || '无样式改动',
       ...(params.note ? ['补充：', params.note] : []),
       '定位提示：',
-      taskHint,
+      latestHint,
       '请优先定位该选择器对应的组件或样式源码，判断是否应固化为正式组件样式；不要手改 dist。',
     ].join('\n');
   }
@@ -4769,8 +5177,7 @@ export function InspectorPanel({
       || change.prop.startsWith('component-new-variant:')
       || change.prop.startsWith('component-variant-group:')
     )));
-    const hasPageSpec = drafts.some(draft => draft.changes.some(change => change.prop === 'page-spec'));
-    const hasLayoutContainerTask = drafts.some(draft => draft.targetLabel.startsWith('布局 /'));
+    const hasLibraryChange = drafts.some(draft => draft.changes.some(change => change.prop.startsWith('library-')));
     const sections = drafts
       .sort((a, b) => a.updatedAt - b.updatedAt)
       .map((draft, index) => {
@@ -4786,16 +5193,14 @@ export function InspectorPanel({
         ].join('\n');
       })
       .join('\n\n');
-    const title = hasPageSpec
-      ? 'DevInspector 页面 / 样式任务'
+    const title = hasLibraryChange
+      ? 'DevInspector 设计库 / 组件 / 样式任务'
       : hasComponentSpec ? 'DevInspector 组件 / 样式任务' : 'DevInspector 样式任务';
-    const locationHint = hasPageSpec
-      ? '这些内容来自 DevInspector 本次修改内容；页面规格是用户确认的草稿，请按页面容器、区块列表和布局规则定位源码，优先拆分 section，不要把整个页面封装成单个组件；不要手改 dist。'
+    const locationHint = hasLibraryChange
+      ? '这些内容来自 DevInspector 设计库工作台；Token / Component 的增删改都是用户确认的受控草稿，请先定位设计 token 配置、组件能力表或源码中的正式定义，再判断如何落地；删除操作需先处理使用关系，不要手改 dist。'
       : hasComponentSpec
-        ? '这些内容来自 DevInspector 本次修改内容；组件规格和新变体是用户确认的草稿，请按组件名、可编辑内容、变体维度、状态、尺寸和样式规则定位源码落地；不要手改 dist。'
-        : hasLayoutContainerTask
-          ? '这些内容来自 DevInspector 本次修改内容；布局容器只处理外层位置、尺寸、padding、gap 和对齐，里层内容、子组件样式和业务逻辑需要单独选中后再改；不要手改 dist。'
-          : '这些内容来自 DevInspector 本次修改内容，请按对象逐一定位源码，判断是否应固化为组件样式、token 或局部覆盖；不要手改 dist。';
+      ? '这些内容来自 DevInspector 本次修改内容；组件规格和新变体是用户确认的草稿，请按组件名、可编辑内容、变体维度、状态、尺寸和样式规则定位源码落地；不要手改 dist。'
+      : '这些内容来自 DevInspector 本次修改内容，请按对象逐一定位源码，判断是否应固化为组件样式、token 或局部覆盖；不要手改 dist。';
     return [
       title,
       `页面：${document.title || '当前页面'}（${window.location.href}）`,
@@ -4836,17 +5241,13 @@ export function InspectorPanel({
     const scopeLabel = hasOnlyInstanceContentPending
       ? '当前元素'
       : scope === 'current' ? '当前元素' : '相同元素';
-    const collectionLayoutInfo = getCollectionLayoutInfo(el);
-    const targetLabel = collectionLayoutInfo
-      ? `布局 / ${getElementDisplayName(el, componentMeta)}`
-      : getTargetDisplayLabel(el, componentMeta);
     const stableSelector = componentMeta && hasComponentAttrPending && componentSelectorVal
       ? componentSelectorVal
       : selector;
 
     const prompt = buildAiTaskPrompt({
       pageLabel: `${document.title || '当前页面'}（${window.location.href}）`,
-      targetLabel,
+      targetLabel: getTargetDisplayLabel(el, componentMeta),
       selector: stableSelector,
       scopeLabel,
       changes,
@@ -5089,6 +5490,12 @@ export function InspectorPanel({
   });
 
   function getChangeLabel(prop: string) {
+    if (prop.startsWith('library-token:') || prop.startsWith('library-component:')) {
+      const [resource = '', action = '', name = '未命名'] = prop.split(':');
+      const resourceLabel = resource === 'library-token' ? 'Token' : '组件规格';
+      const actionLabel = action === 'create' ? '新增' : action === 'update' ? '编辑' : action === 'delete' ? '删除' : '变更';
+      return `${resourceLabel} · ${actionLabel} · ${name}`;
+    }
     if (prop.startsWith('component-variant-group:')) {
       const [, name = '未命名组件'] = prop.split(':');
       return `创建变体组 · ${name}`;
@@ -5123,7 +5530,6 @@ export function InspectorPanel({
       'component-color': '组件颜色',
       'component-status': '标签状态',
       'component-spec': '组件规格',
-      'page-spec': '页面规格',
     };
     if (prop.startsWith('component-slot:')) {
       const slotKey = prop.replace('component-slot:', '');
@@ -5214,6 +5620,7 @@ export function InspectorPanel({
   function resetDraftChangeOnPage(draft: LocalDraftEntry, change: LocalDraftChange) {
     const isCurrentDraft = selectedRef.current ? getDraftTargetInfo(selectedRef.current).key === draft.key : false;
     if (isCurrentDraft) clearPendingForProp(change.prop);
+    if (change.prop.startsWith('library-')) return;
     if (change.prop === 'component-spec' || change.prop.startsWith('component-new-variant:')) return;
 
     const targets = getDraftSelectorTargets(draft.selector);
@@ -5533,12 +5940,8 @@ export function InspectorPanel({
     && (!!componentCapability?.variantKind || componentMeta.variant !== 'default');
   const isTextOnlyTarget = isTextOnlyTargetElement(selected);
   const isPageShellTarget = isPageShellTargetElement(selected);
-  const showPageShellSummary = false;
-  const collectionLayoutInfo = !isPageShellTarget ? getCollectionLayoutInfo(selected) : null;
-  const isCollectionLayoutTarget = !!collectionLayoutInfo;
-  const isStructuralContainerTarget = !isPageShellTarget && !isCollectionLayoutTarget && isStructuralContainerTargetElement(selected);
+  const isStructuralContainerTarget = !isPageShellTarget && isStructuralContainerTargetElement(selected);
   const isSimpleTextGroupTarget = isSimpleTextGroupTargetElement(selected);
-  const showStructuralContainerSummary = false;
   const hideTextStyleSection = isPageShellTarget || isStructuralContainerTarget || isSimpleTextGroupTarget;
   const canAlignChildren = isFlexGridDisplay(getComputedStyle(selected).display);
   const activeButtonVariant = pendingComponentVariant || componentVariantVal;
@@ -5547,9 +5950,7 @@ export function InspectorPanel({
   const activeBadgeStatus = pendingBadgeStatus || badgeStatusVal;
   const activeCardVariant = pendingCardVariant || cardVariantVal;
   const componentSizeOptions = getComponentSizeControlOptions(componentCapability);
-  const showElementStyleSections = !componentMeta && (
-    (!isCollectionLayoutTarget) || structuralStyleOpen
-  );
+  const showElementStyleSections = !componentMeta;
   const localDraftEntries = Object.values(localDrafts).sort((a, b) => b.updatedAt - a.updatedAt);
   const localDraftChangeCount = localDraftEntries.reduce((sum, entry) => sum + entry.changes.length, 0);
   const currentPendingChangeCount = getPendingChangeRecords().length;
@@ -5641,7 +6042,7 @@ export function InspectorPanel({
     option.key === 'create-current-variant' || option.key === 'create-other-variant'
   );
   const componentMakerLivePreviewHtml = getComponentMakerLivePreviewHtml(selected, activeComponentMakerVariantPreview);
-  const canCreateComponent = Boolean(selected) && !componentMeta && !isCollectionLayoutTarget;
+  const canCreateComponent = Boolean(selected) && !componentMeta;
   const componentCreateTargetLabel = selected ? getElementDisplayName(selected, componentMeta) : '当前元素';
   const componentCreateSelector = selected ? getSelectorForScope(selected, 'current') : '';
   const componentCreateDefaultText = selected ? (getTextContent(selected) ?? '').trim() : '';
@@ -5659,16 +6060,7 @@ export function InspectorPanel({
       )
       : ''),
   );
-  const structuralChildGroups = showStructuralContainerSummary && isStructuralContainerTarget ? getStructuralChildGroups(selected) : [];
-  const structuralChildCount = structuralChildGroups.reduce((sum, group) => sum + group.count, 0);
-  const structuralChildSummary = structuralChildGroups.length
-    ? structuralChildGroups.map(group => `${group.label} ${group.count}`).join(' / ')
-    : '暂未识别到可配置子元素';
-  const pageShellSections = isPageShellTarget ? getPageShellSections(selected) : [];
-  const pageShellSectionSummary = pageShellSections.length
-    ? pageShellSections.map(section => section.label).join(' / ')
-    : '暂未识别到页面区块';
-  const panelTitle = isCollectionLayoutTarget ? '布局样式' : '页面样式';
+  const panelTitle = '页面样式';
   const activePaddingValue = pendingPadding || paddingVal;
   const activeMarginValue = pendingMargin || marginVal;
   const activeGapValue = pendingGap || gapVal;
@@ -5676,6 +6068,342 @@ export function InspectorPanel({
   const shouldUseCustomSpaceControls = (variant: SpaceVariant, value: string) => (
     spaceCustomModes[variant] || isEmptySpaceValue(variant, value)
   );
+  const baseLibraryTokenItems = getLibraryTokenItems(tokens, tokenMap);
+  const libraryTokenItems = [
+    ...baseLibraryTokenItems
+      .filter(item => !libraryDeletedTokenIds[item.id])
+      .map(item => libraryTokenOverrides[item.id] ? { ...item, ...libraryTokenOverrides[item.id] } : item),
+    ...libraryCustomTokens,
+  ];
+  const normalizedLibrarySearch = librarySearch.trim().toLowerCase();
+  const filteredLibraryTokenItems = libraryTokenItems.filter(item => {
+    const matchesCategory = libraryTokenCategory === 'all' || item.category === libraryTokenCategory;
+    if (!matchesCategory) return false;
+    const usageCount = countLibraryTokenUsage(item);
+    if (libraryTokenUsageFilter === 'used' && !(usageCount !== null && usageCount > 0)) return false;
+    if (libraryTokenUsageFilter === 'unused' && usageCount !== 0) return false;
+    if (libraryTokenUsageFilter === 'unknown' && usageCount !== null) return false;
+    if (!normalizedLibrarySearch) return true;
+    return [
+      item.name,
+      item.value,
+      item.usage,
+      item.status,
+      item.categoryLabel,
+    ].some(value => value.toLowerCase().includes(normalizedLibrarySearch));
+  });
+  const visibleLibraryTokenItems = filteredLibraryTokenItems.slice(0, 80);
+  const libraryTokenCategoryCounts = LIBRARY_TOKEN_CATEGORIES.reduce<Record<LibraryTokenCategory, number>>((acc, category) => {
+    acc[category.key] = category.key === 'all'
+      ? libraryTokenItems.length
+      : libraryTokenItems.filter(item => item.category === category.key).length;
+    return acc;
+  }, {} as Record<LibraryTokenCategory, number>);
+  const selectedLibraryToken = libraryTokenItems.find(item => item.id === selectedLibraryTokenId) ?? visibleLibraryTokenItems[0] ?? null;
+  const componentPreviewByType = new Map(
+    componentPreviews.map(preview => [preview.type.trim().toLowerCase(), preview]),
+  );
+  const systemComponentTypes = new Set(Object.keys(COMPONENT_CAPABILITIES).map(type => type.toLowerCase()));
+  const buildLibraryComponentItemFromPreview = (preview: DevInspectorComponentPreview): LibraryComponentItem => {
+    const type = preview.type.trim() || 'Custom';
+    const category = preview.category ?? getLibraryComponentCategory(type);
+    return {
+      id: `component-preview:${type}`,
+      category,
+      categoryLabel: getLibraryComponentCategoryLabel(category),
+      type,
+      label: preview.label || LIBRARY_COMPONENT_LABELS[type] || type,
+      summary: preview.summary || '真实组件预览',
+      selector: preview.selector || `真实组件 ${type}`,
+      status: preview.status || '真实组件',
+      preview,
+      source: 'system',
+    };
+  };
+  const componentLibraryItems: LibraryComponentItem[] = [
+    ...Object.entries(COMPONENT_CAPABILITIES)
+      .map(([type, capability]) => {
+        const id = `component:${type}`;
+        const registeredPreview = componentPreviewByType.get(type.toLowerCase());
+        const category = registeredPreview?.category ?? getLibraryComponentCategory(type);
+        const item: LibraryComponentItem = {
+          id,
+          category,
+          categoryLabel: getLibraryComponentCategoryLabel(category),
+          type,
+          label: registeredPreview?.label || LIBRARY_COMPONENT_LABELS[type] || type,
+          summary: registeredPreview?.summary || getComponentCapabilitySummary(type, capability),
+          selector: registeredPreview?.selector || (type === 'Icon' ? 'svg.lucide' : `.${type.toLowerCase()}, [data-component="${type}"]`),
+          status: registeredPreview?.status || '已接入',
+          preview: registeredPreview,
+          source: 'system',
+        };
+        return libraryComponentOverrides[id] ? { ...item, ...libraryComponentOverrides[id] } : item;
+      })
+      .filter(item => !libraryDeletedComponentIds[item.id]),
+    ...componentPreviews
+      .filter(preview => !systemComponentTypes.has(preview.type.trim().toLowerCase()))
+      .map(preview => {
+        const item = buildLibraryComponentItemFromPreview(preview);
+        return libraryComponentOverrides[item.id] ? { ...item, ...libraryComponentOverrides[item.id] } : item;
+      })
+      .filter(item => !libraryDeletedComponentIds[item.id]),
+    ...libraryCustomComponents,
+  ];
+  const filteredLibraryComponentItems = componentLibraryItems.filter(item => {
+    const matchesCategory = libraryComponentCategory === 'all' || item.category === libraryComponentCategory;
+    if (!matchesCategory) return false;
+    if (!normalizedLibrarySearch) return true;
+    return [item.type, item.label, item.categoryLabel, item.summary, item.selector, item.status]
+      .some(value => value.toLowerCase().includes(normalizedLibrarySearch));
+  });
+  const filteredLibraryComponentSpecCount = filteredLibraryComponentItems.reduce((count, item) =>
+    count + (item.preview?.variants.length || 1),
+  0);
+  const libraryComponentCategoryCounts = LIBRARY_COMPONENT_CATEGORIES.reduce<Record<LibraryComponentCategory, number>>((acc, category) => {
+    acc[category.key] = category.key === 'all'
+      ? componentLibraryItems.length
+      : componentLibraryItems.filter(item => item.category === category.key).length;
+    return acc;
+  }, {} as Record<LibraryComponentCategory, number>);
+  const selectedLibraryComponent = componentLibraryItems.find(item => item.id === selectedLibraryComponentId)
+    ?? filteredLibraryComponentItems[0]
+    ?? null;
+  const selectedLibraryComponentVariant = selectedLibraryComponent?.preview?.variants.find(variant =>
+    getLibraryComponentVariantKey(selectedLibraryComponent.id, variant.id) === selectedLibraryComponentVariantId,
+  ) ?? selectedLibraryComponent?.preview?.variants[0] ?? null;
+  const selectedLibraryComponentSpecKey = selectedLibraryComponent && selectedLibraryComponentVariant
+    ? getLibraryComponentVariantKey(selectedLibraryComponent.id, selectedLibraryComponentVariant.id)
+    : '';
+  const getLibraryComponentSpecSelector = (component: LibraryComponentItem, variant: DevInspectorComponentPreviewVariant) =>
+    variant.selector?.trim() || component.selector.trim();
+  const countLibraryComponentSelectorUsage = (selector: string): number | null => {
+    const normalizedSelector = selector.trim();
+    if (!normalizedSelector || normalizedSelector.startsWith('真实组件') || normalizedSelector === '未登记 selector') return null;
+    try {
+      return Array.from(document.querySelectorAll(normalizedSelector))
+        .filter(element => !element.closest('.di-panel'))
+        .length;
+    } catch {
+      return null;
+    }
+  };
+  const selectedLibraryComponentSpec: LibraryComponentSpecDetail | null = selectedLibraryComponent && selectedLibraryComponentVariant
+    ? {
+        component: selectedLibraryComponent,
+        variant: selectedLibraryComponentVariant,
+        key: selectedLibraryComponentSpecKey,
+        selector: getLibraryComponentSpecSelector(selectedLibraryComponent, selectedLibraryComponentVariant),
+        purpose: getLibraryComponentVariantPurpose(selectedLibraryComponent, selectedLibraryComponentVariant),
+        capabilities: getLibraryComponentVariantCapabilities(selectedLibraryComponent, selectedLibraryComponentVariant),
+        tokenRefs: getLibraryComponentVariantTokenRefs(selectedLibraryComponent, selectedLibraryComponentVariant),
+        usageCount: countLibraryComponentSelectorUsage(getLibraryComponentSpecSelector(selectedLibraryComponent, selectedLibraryComponentVariant)),
+      }
+    : null;
+  const libraryDraftChangeRows = localDraftEntries.flatMap((entry) => (
+    entry.changes.map((change, index) => ({ entry, change, index }))
+  ));
+  const libraryUsageItems = libraryTokenItems
+    .map(item => ({ item, usageCount: countLibraryTokenUsage(item) }))
+    .filter(({ usageCount }) => usageCount !== null)
+    .sort((a, b) => (b.usageCount ?? 0) - (a.usageCount ?? 0))
+    .slice(0, 60);
+  const libraryNavItems: Array<{ key: DesignLibraryTab; label: string; count: number; hint: string }> = [
+    { key: 'tokens', label: 'Tokens', count: libraryTokenItems.length, hint: '设计 token' },
+    { key: 'components', label: 'Components', count: componentLibraryItems.length, hint: '组件规格' },
+    { key: 'changes', label: 'Changes', count: localDraftChangeCount, hint: '修改篮' },
+    { key: 'usage', label: 'Usage', count: libraryUsageItems.length, hint: '使用治理' },
+  ];
+
+  function groupRegisteredPreviewVariants(variants: DevInspectorComponentPreviewVariant[]) {
+    const groups = new Map<string, DevInspectorComponentPreviewVariant[]>();
+    variants.forEach(variant => {
+      const key = variant.group || '默认';
+      groups.set(key, [...(groups.get(key) ?? []), variant]);
+    });
+    return Array.from(groups.entries()).map(([label, items]) => ({ label, items }));
+  }
+
+  function selectLibraryComponentSpec(component: LibraryComponentItem, variant: DevInspectorComponentPreviewVariant) {
+    setSelectedLibraryComponentId(component.id);
+    setSelectedLibraryComponentVariantId(getLibraryComponentVariantKey(component.id, variant.id));
+    setLibraryComponentForm(null);
+  }
+
+  function renderRegisteredComponentPreview(component: LibraryComponentItem, preview: DevInspectorComponentPreview, mode: 'card' | 'detail') {
+    const groups = groupRegisteredPreviewVariants(preview.variants);
+    return (
+      <div
+        className={`di-library-real-preview${mode === 'detail' ? ' di-library-real-preview--detail' : ''}`}
+        onClick={event => event.stopPropagation()}
+        onKeyDown={event => event.stopPropagation()}
+      >
+        {groups.map(group => (
+          <div className="di-library-real-preview-group" key={group.label}>
+            <div className="di-library-real-preview-group-title">{group.label}</div>
+            <div className="di-library-real-preview-grid">
+              {group.items.map(variant => {
+                const specKey = getLibraryComponentVariantKey(component.id, variant.id);
+                const isSelected = selectedLibraryComponentSpecKey === specKey;
+                return (
+                <div
+                  className={`di-library-real-preview-item${isSelected ? ' di-library-real-preview-item--selected' : ''}`}
+                  key={variant.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={isSelected}
+                  onMouseDownCapture={() => selectLibraryComponentSpec(component, variant)}
+                  onKeyDown={event => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    selectLibraryComponentSpec(component, variant);
+                  }}
+                >
+                  <div className="di-library-real-preview-slot">
+                    {variant.render()}
+                  </div>
+                  <div className="di-library-real-preview-meta">
+                    <span>{variant.label}</span>
+                    {variant.propsLabel ? <small>{variant.propsLabel}</small> : null}
+                  </div>
+                </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  function renderLibraryComponentPreview(item: LibraryComponentItem, mode: 'card' | 'detail' = 'card') {
+    if (item.preview?.variants.length) {
+      return renderRegisteredComponentPreview(item, item.preview, mode);
+    }
+
+    const normalizedType = item.type.trim().toLowerCase();
+    const matrixModeClass = mode === 'detail' ? ' di-library-preview-matrix--detail' : '';
+    if (normalizedType.includes('button') || item.category === 'action') {
+      const gridStyle = {
+        '--di-library-matrix-columns': `34px repeat(${BUTTON_VARIANT_OPTIONS.length}, minmax(76px, max-content))`,
+      } as CSSProperties;
+      return (
+        <div className={`di-library-preview-matrix di-library-preview-matrix--button${matrixModeClass}`} aria-hidden="true" style={gridStyle}>
+          <div className="di-library-preview-matrix-head">
+            <span>尺寸</span>
+            {BUTTON_VARIANT_OPTIONS.map(variant => <span key={variant.key}>{variant.label}</span>)}
+          </div>
+          {BUTTON_SIZE_OPTIONS.map(size => (
+            <div className="di-library-preview-matrix-row" key={size.key}>
+              <span className="di-library-preview-matrix-label">{size.label}</span>
+              {BUTTON_VARIANT_OPTIONS.map(variant => (
+                <span
+                  key={`${size.key}-${variant.key}`}
+                  className={`di-library-preview-button di-library-preview-button--${variant.key}`}
+                  style={{ minHeight: size.minHeight, padding: size.padding, fontSize: size.fontSize }}
+                >
+                  {variant.label}
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (normalizedType.includes('badge') || normalizedType.includes('tag') || item.category === 'feedback') {
+      const gridStyle = {
+        '--di-library-matrix-columns': `34px repeat(${BADGE_STATUS_OPTIONS.length}, minmax(58px, max-content))`,
+      } as CSSProperties;
+      return (
+        <div className={`di-library-preview-matrix di-library-preview-matrix--badge${matrixModeClass}`} aria-hidden="true" style={gridStyle}>
+          <div className="di-library-preview-matrix-head">
+            <span>尺寸</span>
+            {BADGE_STATUS_OPTIONS.map(status => <span key={status.key}>{status.label}</span>)}
+          </div>
+          {BADGE_SIZE_OPTIONS.map(size => (
+            <div className="di-library-preview-matrix-row" key={size.key}>
+              <span className="di-library-preview-matrix-label">{size.label}</span>
+              {BADGE_STATUS_OPTIONS.map(status => (
+                <span
+                  key={`${size.key}-${status.key}`}
+                  className={`di-library-preview-badge di-library-preview-badge--${status.key}`}
+                  style={{ minHeight: size.minHeight, padding: size.padding, fontSize: size.fontSize }}
+                >
+                  {status.label}
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (normalizedType.includes('card') || item.category === 'display') {
+      return (
+        <div className={`di-library-preview-card-gallery${mode === 'detail' ? ' di-library-preview-card-gallery--detail' : ''}`} aria-hidden="true">
+          {CARD_VARIANT_OPTIONS.map(variant => (
+            <div className={`di-library-preview-card-sample di-library-preview-card-sample--${variant.key}`} key={variant.key}>
+              <span>{variant.label}</span>
+              <strong>任务标题</strong>
+              <p>{variant.key === 'compact' ? '紧凑信息层级。' : '这是一段示例描述文字，用于展示卡片内容层级。'}</p>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (normalizedType.includes('form') || normalizedType.includes('input') || item.category === 'form') {
+      return (
+        <div className="di-library-preview-form-sample" aria-hidden="true">
+          <span>门店名称</span>
+          <div>例如：西湖旗舰店</div>
+          <strong>提交</strong>
+        </div>
+      );
+    }
+    if (normalizedType.includes('icon') || item.category === 'icon') {
+      const gridStyle = {
+        '--di-library-matrix-columns': `34px repeat(${ICON_COLOR_OPTIONS.length}, minmax(44px, 1fr))`,
+      } as CSSProperties;
+      return (
+        <div className={`di-library-preview-matrix di-library-preview-matrix--icon${matrixModeClass}`} aria-hidden="true" style={gridStyle}>
+          <div className="di-library-preview-matrix-head">
+            <span>尺寸</span>
+            {ICON_COLOR_OPTIONS.map(color => <span key={color.key}>{color.label}</span>)}
+          </div>
+          {ICON_SIZE_OPTIONS.map(size => (
+            <div className="di-library-preview-matrix-row" key={size.key}>
+              <span className="di-library-preview-matrix-label">{size.label}</span>
+              {ICON_COLOR_OPTIONS.map(color => (
+                <span className="di-library-preview-icon-cell" key={`${size.key}-${color.key}`}>
+                  <ComponentIcon size={Number.parseFloat(size.size)} strokeWidth={2.2} style={{ color: color.value }} />
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div className="di-library-preview-generic" aria-hidden="true">
+        <ComponentIcon size={22} strokeWidth={2.2} />
+        <strong>{item.label}</strong>
+        <span>{item.selector}</span>
+      </div>
+    );
+  }
+
+  function renderLibraryComponentSpecPreview(spec: LibraryComponentSpecDetail) {
+    return (
+      <div className="di-library-spec-preview">
+        <div className="di-library-spec-preview-slot">
+          {spec.variant.render()}
+        </div>
+        <div className="di-library-spec-preview-meta">
+          <span>{spec.variant.label}</span>
+          {spec.variant.propsLabel ? <small>{spec.variant.propsLabel}</small> : null}
+        </div>
+      </div>
+    );
+  }
 
   // ─── Render ──────────────────────────────────────────────────
   return (
@@ -5695,7 +6423,7 @@ export function InspectorPanel({
       {(
         <div
           ref={panelElRef}
-          className={`di-panel${componentCreateOpen ? ' di-panel--drawer-open' : ''}`}
+          className={`di-panel${componentCreateOpen || libraryOpen ? ' di-panel--drawer-open' : ''}${libraryWorkbenchOpen ? ' di-panel--workbench-open' : ''}`}
           data-di-panel-role="primary"
           style={{ top: panelPos.top, left: panelPos.left }}
         >
@@ -5704,7 +6432,23 @@ export function InspectorPanel({
           <div className="di-head" onMouseDown={onDragStart}>
             <div className="di-head-left">
               <span className="di-title">{panelTitle}</span>
-              <span className="di-badge-dev">Dev Only</span>
+              <span className="di-badge-dev" title="开发环境工具">DEV</span>
+              <button
+                type="button"
+                className={`di-library-trigger${libraryOpen ? ' di-library-trigger--on' : ''}`}
+                onClick={() => {
+                  setLibraryOpen(v => !v);
+                  setComponentCreateOpen(false);
+                  setComponentCreateContainerMenuOpen(false);
+                  setComponentCreateTypeMenuOpen(false);
+                }}
+                title="打开设计库"
+                aria-label="打开设计库"
+                aria-expanded={libraryOpen}
+              >
+                <LibraryIcon size={14} strokeWidth={2.2} aria-hidden="true" />
+                Library
+              </button>
               <button
                 className="di-head-icon-btn"
                 title="选中父层"
@@ -5729,6 +6473,771 @@ export function InspectorPanel({
             </div>
           </div>
 
+          {libraryOpen && (
+            <div className="di-library-layer" role="presentation">
+              <div className="di-library-drawer" role="dialog" aria-modal="true" aria-label="设计库">
+                <div className="di-library-head">
+                  <div className="di-library-title">
+                    <LibraryIcon size={15} strokeWidth={2.2} aria-hidden="true" />
+                    Library
+                    <span>设计库</span>
+                  </div>
+                  <div className="di-library-head-actions">
+                    <button
+                      type="button"
+                      className="di-library-workbench-trigger"
+                      onClick={() => {
+                        setLibraryWorkbenchOpen(true);
+                        setLibraryOpen(false);
+                        setComponentCreateOpen(false);
+                      }}
+                    >
+                      完整设计库
+                    </button>
+                    <button
+                      type="button"
+                      className="di-head-icon-btn"
+                      onClick={() => setLibraryOpen(false)}
+                      title="关闭设计库"
+                      aria-label="关闭设计库"
+                    >
+                      <X size={15} strokeWidth={2.2} aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="di-library-tabs" role="tablist" aria-label="设计库分类">
+                  <button
+                    type="button"
+                    className={`di-library-tab${libraryTab === 'tokens' ? ' di-library-tab--active' : ''}`}
+                    onClick={() => setLibraryTab('tokens')}
+                    role="tab"
+                    aria-selected={libraryTab === 'tokens'}
+                  >
+                    Tokens
+                  </button>
+                  <button
+                    type="button"
+                    className={`di-library-tab${libraryTab === 'components' ? ' di-library-tab--active' : ''}`}
+                    onClick={() => setLibraryTab('components')}
+                    role="tab"
+                    aria-selected={libraryTab === 'components'}
+                  >
+                    Components
+                  </button>
+                </div>
+
+                {libraryTab === 'tokens' ? (
+                  <div className="di-library-content" role="tabpanel" aria-label="Tokens">
+                    <div className="di-library-tools">
+                      <label className="di-library-search">
+                        <span>搜索</span>
+                        <input
+                          value={librarySearch}
+                          onChange={event => setLibrarySearch(event.currentTarget.value)}
+                          placeholder="名称、值、用途"
+                        />
+                      </label>
+                      <div className="di-library-categories" aria-label="Token 分类">
+                        {LIBRARY_TOKEN_CATEGORIES.map(category => (
+                          <button
+                            type="button"
+                            key={category.key}
+                            className={`di-library-category${libraryTokenCategory === category.key ? ' di-library-category--active' : ''}`}
+                            onClick={() => setLibraryTokenCategory(category.key)}
+                          >
+                            {category.label}
+                            <span className="di-library-category-count">{libraryTokenCategoryCounts[category.key] ?? 0}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="di-library-summary">
+                      <strong>{filteredLibraryTokenItems.length}</strong>
+                      <span>个 token</span>
+                      <small>统一查看、筛选和定位使用情况</small>
+                    </div>
+
+                    <div className="di-library-list">
+                      {visibleLibraryTokenItems.map(item => {
+                        const usageCount = countLibraryTokenUsage(item);
+                        const previewValue = item.previewValue || item.rawValue;
+                        const previewStyle = previewValue
+                          ? ({ '--di-library-preview': previewValue } as CSSProperties)
+                          : undefined;
+                        return (
+                          <div className="di-library-token-row" key={item.id}>
+                            <span
+                              className={`di-library-token-preview di-library-token-preview--${item.preview}`}
+                              style={previewStyle}
+                              aria-hidden="true"
+                            />
+                            <div className="di-library-token-main">
+                              <div className="di-library-token-name">{item.name}</div>
+                              <div className="di-library-token-meta">
+                                <span>{item.categoryLabel}</span>
+                                <span>{item.usage}</span>
+                              </div>
+                            </div>
+                            <div className="di-library-token-side">
+                              <code>{item.value}</code>
+                              <span>{item.status}</span>
+                            </div>
+                            <button
+                              type="button"
+                              className="di-library-token-usage"
+                              onClick={() => focusLibraryTokenUsage(item)}
+                              title={usageCount === null ? '无法统计使用情况' : usageCount > 0 ? '定位第一个使用处' : '当前页面未使用'}
+                            >
+                              <strong>{usageCount === null ? '—' : usageCount}</strong>
+                              <span>使用</span>
+                            </button>
+                          </div>
+                        );
+                      })}
+                      {!visibleLibraryTokenItems.length ? (
+                        <div className="di-library-empty">没有匹配的 token</div>
+                      ) : null}
+                      {filteredLibraryTokenItems.length > visibleLibraryTokenItems.length ? (
+                        <div className="di-library-more">仅展示前 {visibleLibraryTokenItems.length} 个结果</div>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="di-library-content" role="tabpanel" aria-label="Components">
+                    <div className="di-library-note">
+                      Components 在轻入口展示当前识别能力概览；增删改查进入完整设计库，以设计库草稿形式进入修改内容。
+                    </div>
+                    <div className="di-library-list">
+                      {componentLibraryItems.map(item => (
+                        <div className="di-library-component-row" key={item.id}>
+                          <div className="di-library-component-icon" aria-hidden="true">
+                            <ComponentIcon size={15} strokeWidth={2.2} />
+                          </div>
+                          <div className="di-library-component-main">
+                            <div className="di-library-component-title">
+                              {item.label}
+                              <span>{item.type}</span>
+                            </div>
+                            <div className="di-library-component-summary">{item.summary}</div>
+                          </div>
+                          <span className="di-library-component-status">{item.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {libraryWorkbenchOpen && (
+            <div className="di-library-workbench-layer" role="presentation">
+              <div className="di-library-workbench" role="dialog" aria-modal="true" aria-label="完整设计库">
+                <div className="di-library-workbench-head">
+                  <div className="di-library-workbench-title">
+                    <LibraryIcon size={18} strokeWidth={2.2} aria-hidden="true" />
+                    <div>
+                      <strong>Library</strong>
+                      <span>完整设计库管理页</span>
+                    </div>
+                  </div>
+                  <div className="di-library-workbench-head-actions">
+                    <button
+                      type="button"
+                      className="di-library-workbench-soft-btn"
+                      onClick={() => setLibraryOpen(true)}
+                    >
+                      回到面板入口
+                    </button>
+                    <button
+                      type="button"
+                      className="di-head-icon-btn"
+                      onClick={() => {
+                        setLibraryWorkbenchOpen(false);
+                        setLibraryTokenForm(null);
+                        setLibraryComponentForm(null);
+                      }}
+                      title="关闭完整设计库"
+                      aria-label="关闭完整设计库"
+                    >
+                      <X size={15} strokeWidth={2.2} aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="di-library-workbench-grid">
+                  <aside className="di-library-workbench-nav">
+                    <div className="di-library-workbench-brand">
+                      <strong>Design Library</strong>
+                      <span>可视化资源管理</span>
+                    </div>
+                    <div className="di-library-workbench-tabs" role="tablist" aria-label="设计库资源">
+                      {libraryNavItems.map(item => (
+                        <button
+                          type="button"
+                          key={item.key}
+                          className={`di-library-workbench-tab${libraryTab === item.key ? ' di-library-workbench-tab--active' : ''}`}
+                          onClick={() => {
+                            setLibraryTab(item.key);
+                            setLibraryTokenForm(null);
+                            setLibraryComponentForm(null);
+                          }}
+                          role="tab"
+                          aria-selected={libraryTab === item.key}
+                        >
+                          <span>
+                            {item.label}
+                            <small>{item.hint}</small>
+                          </span>
+                          <strong>{item.count}</strong>
+                        </button>
+                      ))}
+                    </div>
+
+                    {(libraryTab === 'tokens' || libraryTab === 'components') && (
+                      <label className="di-library-workbench-search">
+                        <span>搜索</span>
+                        <input
+                          value={librarySearch}
+                          onChange={event => setLibrarySearch(event.currentTarget.value)}
+                          placeholder="名称、值、用途、selector"
+                        />
+                      </label>
+                    )}
+
+                    {libraryTab === 'tokens' ? (
+                      <>
+                        <div className="di-library-workbench-nav-title">分类</div>
+                        <div className="di-library-workbench-filter-list">
+                          {LIBRARY_TOKEN_CATEGORIES.map(category => (
+                            <button
+                              type="button"
+                              key={category.key}
+                              className={`di-library-workbench-filter${libraryTokenCategory === category.key ? ' di-library-workbench-filter--active' : ''}`}
+                              onClick={() => setLibraryTokenCategory(category.key)}
+                            >
+                              <span>{category.label}</span>
+                              <strong>{libraryTokenCategoryCounts[category.key] ?? 0}</strong>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="di-library-workbench-nav-title">使用情况</div>
+                        <div className="di-library-workbench-filter-list">
+                          {([
+                            ['all', '全部'],
+                            ['used', '已使用'],
+                            ['unused', '未使用'],
+                            ['unknown', '无法统计'],
+                          ] as const).map(([key, label]) => (
+                            <button
+                              type="button"
+                              key={key}
+                              className={`di-library-workbench-filter${libraryTokenUsageFilter === key ? ' di-library-workbench-filter--active' : ''}`}
+                              onClick={() => setLibraryTokenUsageFilter(key)}
+                            >
+                              <span>{label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    ) : libraryTab === 'components' ? (
+                      <>
+                        <div className="di-library-workbench-nav-title">组件分类</div>
+                        <div className="di-library-workbench-filter-list">
+                          {LIBRARY_COMPONENT_CATEGORIES.map(category => (
+                            <button
+                              type="button"
+                              key={category.key}
+                              className={`di-library-workbench-filter${libraryComponentCategory === category.key ? ' di-library-workbench-filter--active' : ''}`}
+                              onClick={() => setLibraryComponentCategory(category.key)}
+                            >
+                              <span>{category.label}</span>
+                              <strong>{libraryComponentCategoryCounts[category.key] ?? 0}</strong>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="di-library-workbench-note">
+                          中间展示真实组件预览；新增、编辑、删除仍只进入设计库草稿，不直接改源码组件。
+                        </div>
+                      </>
+                    ) : libraryTab === 'changes' ? (
+                      <div className="di-library-workbench-note">
+                        Changes 是发送给 AI 前的复核区。这里展示所有设计库和样式草稿，不直接写源码。
+                      </div>
+                    ) : (
+                      <div className="di-library-workbench-note">
+                        Usage 用于删除或替换前的影响检查。点击使用次数会回到页面定位第一个命中元素。
+                      </div>
+                    )}
+                  </aside>
+
+                  <main className="di-library-workbench-main">
+                    {libraryTab === 'tokens' ? (
+                      <>
+                        <div className="di-library-workbench-toolbar">
+                          <div>
+                            <strong>{filteredLibraryTokenItems.length}</strong>
+                            <span>个 token</span>
+                          </div>
+                          <button type="button" className="di-btn-save" onClick={openLibraryTokenCreate}>
+                            + Token
+                          </button>
+                        </div>
+                        <div className="di-library-workbench-table" role="table" aria-label="Token 列表">
+                          <div className="di-library-workbench-table-head" role="row">
+                            <span>Token</span>
+                            <span>值 / 用途</span>
+                            <span>状态</span>
+                            <span>使用</span>
+                            <span>操作</span>
+                          </div>
+                          {visibleLibraryTokenItems.map(item => {
+                            const usageCount = countLibraryTokenUsage(item);
+                            const isSelected = selectedLibraryToken?.id === item.id;
+                            return (
+                              <div
+                                className={`di-library-workbench-row${isSelected ? ' di-library-workbench-row--selected' : ''}`}
+                                role="row"
+                                key={item.id}
+                                onClick={() => {
+                                  setSelectedLibraryTokenId(item.id);
+                                  setLibraryTokenForm(null);
+                                }}
+                              >
+                                <div className="di-library-workbench-token-cell">
+                                  <span
+                                    className={`di-library-token-preview di-library-token-preview--${item.preview}`}
+                                    style={item.previewValue ? ({ '--di-library-preview': item.previewValue } as CSSProperties) : undefined}
+                                    aria-hidden="true"
+                                  />
+                                  <div>
+                                    <strong>{item.name}</strong>
+                                    <small>{item.categoryLabel}</small>
+                                  </div>
+                                </div>
+                                <div className="di-library-workbench-copy-cell">
+                                  <code>{item.value}</code>
+                                  <span>{item.usage}</span>
+                                </div>
+                                <span className="di-library-workbench-status">{libraryDeletedTokenIds[item.id] || item.status}</span>
+                                <button
+                                  type="button"
+                                  className="di-library-workbench-count"
+                                  onClick={event => {
+                                    event.stopPropagation();
+                                    focusLibraryTokenUsage(item);
+                                  }}
+                                  title={usageCount === null ? '无法统计使用情况' : usageCount > 0 ? '定位第一个使用处' : '当前页面未使用'}
+                                >
+                                  {usageCount === null ? '—' : usageCount}
+                                </button>
+                                <div className="di-library-workbench-actions">
+                                  <button type="button" onClick={event => { event.stopPropagation(); copyTextToClipboard(item.name); }}>复制名</button>
+                                  <button type="button" onClick={event => { event.stopPropagation(); openLibraryTokenEdit(item); }}>编辑</button>
+                                  <button type="button" onClick={event => { event.stopPropagation(); deleteLibraryToken(item); }}>删除</button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {!visibleLibraryTokenItems.length ? (
+                            <div className="di-library-workbench-empty">没有匹配的 token</div>
+                          ) : null}
+                        </div>
+                      </>
+                    ) : libraryTab === 'components' ? (
+                      <>
+                        <div className="di-library-workbench-toolbar">
+                          <div>
+                            <strong>{filteredLibraryComponentItems.length}</strong>
+                            <span>个组件 / {filteredLibraryComponentSpecCount} 个规格</span>
+                          </div>
+                          <button type="button" className="di-btn-save" onClick={openLibraryComponentCreate}>
+                            + 组件规格
+                          </button>
+                        </div>
+                        <div className="di-library-component-preview-grid" role="list" aria-label="组件真实预览">
+                          {filteredLibraryComponentItems.map(item => {
+                            const isSelected = selectedLibraryComponent?.id === item.id;
+                            return (
+                              <div
+                                className={`di-library-component-preview-card${isSelected ? ' di-library-component-preview-card--selected' : ''}`}
+                                role="listitem"
+                                tabIndex={0}
+                                aria-current={isSelected ? 'true' : undefined}
+                                key={item.id}
+                                onClick={() => {
+                                  setSelectedLibraryComponentId(item.id);
+                                  setSelectedLibraryComponentVariantId(item.preview?.variants[0]
+                                    ? getLibraryComponentVariantKey(item.id, item.preview.variants[0].id)
+                                    : '');
+                                  setLibraryComponentForm(null);
+                                }}
+                                onKeyDown={event => {
+                                  if (event.key !== 'Enter' && event.key !== ' ') return;
+                                  event.preventDefault();
+                                  setSelectedLibraryComponentId(item.id);
+                                  setSelectedLibraryComponentVariantId(item.preview?.variants[0]
+                                    ? getLibraryComponentVariantKey(item.id, item.preview.variants[0].id)
+                                    : '');
+                                  setLibraryComponentForm(null);
+                                }}
+                              >
+                                <div className="di-library-component-preview-head">
+                                  <div>
+                                    <span>{item.categoryLabel}</span>
+                                    <strong>{item.label}</strong>
+                                  </div>
+                                  <small>{libraryDeletedComponentIds[item.id] || item.status}</small>
+                                </div>
+                                <div className="di-library-component-preview-stage">
+                                  {renderLibraryComponentPreview(item)}
+                                </div>
+                                <div className="di-library-component-preview-copy">
+                                  <span>{item.type}</span>
+                                  <p>{item.summary}</p>
+                                  <code>{item.selector}</code>
+                                </div>
+                                <div className="di-library-component-preview-actions">
+                                  <button type="button" onClick={event => { event.stopPropagation(); copyTextToClipboard(item.selector); }}>复制 selector</button>
+                                  <button type="button" onClick={event => { event.stopPropagation(); openLibraryComponentEdit(item); }}>编辑</button>
+                                  <button type="button" onClick={event => { event.stopPropagation(); deleteLibraryComponent(item); }}>删除</button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {!filteredLibraryComponentItems.length ? (
+                            <div className="di-library-workbench-empty">没有匹配的组件规格</div>
+                          ) : null}
+                        </div>
+                      </>
+                    ) : libraryTab === 'changes' ? (
+                      <>
+                        <div className="di-library-workbench-toolbar">
+                          <div>
+                            <strong>{localDraftChangeCount}</strong>
+                            <span>条待处理修改</span>
+                          </div>
+                          <button
+                            type="button"
+                            className="di-btn-save"
+                            disabled={localDraftChangeCount === 0}
+                            onClick={handleSubmitToAi}
+                          >
+                            {submitMsg || '发送给AI'}
+                          </button>
+                        </div>
+                        <div className="di-library-workbench-table" role="table" aria-label="修改篮列表">
+                          <div className="di-library-workbench-table-head di-library-workbench-table-head--changes" role="row">
+                            <span>对象</span>
+                            <span>修改内容</span>
+                            <span>范围</span>
+                            <span>操作</span>
+                          </div>
+                          {libraryDraftChangeRows.map(({ entry, change, index }) => (
+                            <div
+                              className="di-library-workbench-row di-library-workbench-row--changes"
+                              role="row"
+                              key={`${entry.key}-${change.prop}-${index}`}
+                            >
+                              <div className="di-library-workbench-token-cell">
+                                <span className="di-library-change-index">{index + 1}</span>
+                                <div>
+                                  <strong>{entry.targetLabel}</strong>
+                                  <small>{entry.selector}</small>
+                                </div>
+                              </div>
+                              <div className="di-library-workbench-copy-cell">
+                                <code>{getChangeLabel(change.prop)}</code>
+                                <span>{formatStoredChangeRecordValue(change.prop, change.from)} → {formatStoredChangeRecordValue(change.prop, change.val)}</span>
+                              </div>
+                              <span className="di-library-workbench-status">{entry.scopeLabel}</span>
+                              <div className="di-library-workbench-actions">
+                                <button type="button" onClick={() => handleResetLocalDraftChange(entry.key, change.prop)}>移除</button>
+                                <button type="button" onClick={() => handleDeleteLocalDraft(entry.key)}>删除对象</button>
+                              </div>
+                            </div>
+                          ))}
+                          {!libraryDraftChangeRows.length ? (
+                            <div className="di-library-workbench-empty">修改篮为空</div>
+                          ) : null}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="di-library-workbench-toolbar">
+                          <div>
+                            <strong>{libraryUsageItems.length}</strong>
+                            <span>个可统计资源</span>
+                          </div>
+                          <button
+                            type="button"
+                            className="di-library-workbench-soft-btn"
+                            onClick={() => setLibraryTab('tokens')}
+                          >
+                            返回 Tokens
+                          </button>
+                        </div>
+                        <div className="di-library-workbench-table" role="table" aria-label="使用治理列表">
+                          <div className="di-library-workbench-table-head di-library-workbench-table-head--usage" role="row">
+                            <span>Token</span>
+                            <span>用途</span>
+                            <span>使用</span>
+                            <span>治理动作</span>
+                          </div>
+                          {libraryUsageItems.map(({ item, usageCount }) => (
+                            <div
+                              className="di-library-workbench-row di-library-workbench-row--usage"
+                              role="row"
+                              key={`usage-${item.id}`}
+                              onClick={() => {
+                                setSelectedLibraryTokenId(item.id);
+                                setLibraryTokenForm(null);
+                              }}
+                            >
+                              <div className="di-library-workbench-token-cell">
+                                <span
+                                  className={`di-library-token-preview di-library-token-preview--${item.preview}`}
+                                  style={item.previewValue ? ({ '--di-library-preview': item.previewValue } as CSSProperties) : undefined}
+                                  aria-hidden="true"
+                                />
+                                <div>
+                                  <strong>{item.name}</strong>
+                                  <small>{item.categoryLabel}</small>
+                                </div>
+                              </div>
+                              <div className="di-library-workbench-copy-cell">
+                                <code>{item.value}</code>
+                                <span>{item.usage}</span>
+                              </div>
+                              <button
+                                type="button"
+                                className="di-library-workbench-count"
+                                onClick={event => {
+                                  event.stopPropagation();
+                                  focusLibraryTokenUsage(item);
+                                }}
+                              >
+                                {usageCount}
+                              </button>
+                              <div className="di-library-workbench-actions">
+                                <button type="button" onClick={event => { event.stopPropagation(); focusLibraryTokenUsage(item); }}>定位</button>
+                                <button type="button" onClick={event => { event.stopPropagation(); openLibraryTokenEdit(item); }}>替换草稿</button>
+                                <button type="button" onClick={event => { event.stopPropagation(); deleteLibraryToken(item); }}>删除草稿</button>
+                              </div>
+                            </div>
+                          ))}
+                          {!libraryUsageItems.length ? (
+                            <div className="di-library-workbench-empty">当前没有可统计使用情况的 token</div>
+                          ) : null}
+                        </div>
+                      </>
+                    )}
+                  </main>
+
+                  <aside className="di-library-workbench-detail">
+                    {libraryTab === 'tokens' ? (
+                      libraryTokenForm ? (
+                        <div className="di-library-edit-panel">
+                          <div className="di-library-edit-head">
+                            <strong>{libraryTokenForm.mode === 'create' ? '新增 Token' : '编辑 Token'}</strong>
+                            <button type="button" className="di-head-icon-btn" onClick={() => setLibraryTokenForm(null)} aria-label="关闭 token 表单">
+                              <X size={15} strokeWidth={2.2} aria-hidden="true" />
+                            </button>
+                          </div>
+                          <label>
+                            <span>名称</span>
+                            <input value={libraryTokenForm.name} onChange={event => setLibraryTokenForm(prev => prev ? { ...prev, name: event.currentTarget.value } : prev)} />
+                          </label>
+                          <label>
+                            <span>分类</span>
+                            <select value={libraryTokenForm.category} onChange={event => setLibraryTokenForm(prev => prev ? { ...prev, category: event.currentTarget.value as LibraryTokenItemCategory } : prev)}>
+                              {LIBRARY_TOKEN_CATEGORIES.filter(item => item.key !== 'all').map(item => (
+                                <option key={item.key} value={item.key}>{item.label}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            <span>值</span>
+                            <input value={libraryTokenForm.value} onChange={event => setLibraryTokenForm(prev => prev ? { ...prev, value: event.currentTarget.value } : prev)} />
+                          </label>
+                          <label>
+                            <span>用途</span>
+                            <input value={libraryTokenForm.usage} onChange={event => setLibraryTokenForm(prev => prev ? { ...prev, usage: event.currentTarget.value } : prev)} />
+                          </label>
+                          <label>
+                            <span>状态</span>
+                            <input value={libraryTokenForm.status} onChange={event => setLibraryTokenForm(prev => prev ? { ...prev, status: event.currentTarget.value } : prev)} />
+                          </label>
+                          <button type="button" className="di-btn-save" onClick={submitLibraryTokenForm}>保存到修改内容</button>
+                        </div>
+                      ) : selectedLibraryToken ? (
+                        <div className="di-library-detail-card">
+                          <div className="di-library-detail-kicker">{selectedLibraryToken.categoryLabel}</div>
+                          <h3>{selectedLibraryToken.name}</h3>
+                          <div className="di-library-detail-preview">
+                            <span
+                              className={`di-library-token-preview di-library-token-preview--${selectedLibraryToken.preview}`}
+                              style={selectedLibraryToken.previewValue ? ({ '--di-library-preview': selectedLibraryToken.previewValue } as CSSProperties) : undefined}
+                              aria-hidden="true"
+                            />
+                            <code>{selectedLibraryToken.value}</code>
+                          </div>
+                          <dl>
+                            <div><dt>用途</dt><dd>{selectedLibraryToken.usage}</dd></div>
+                            <div><dt>来源</dt><dd>{selectedLibraryToken.status}</dd></div>
+                            <div><dt>使用</dt><dd>{countLibraryTokenUsage(selectedLibraryToken) ?? '无法统计'}</dd></div>
+                            <div><dt>CSS var</dt><dd>{selectedLibraryToken.name.startsWith('--') ? `var(${selectedLibraryToken.name})` : selectedLibraryToken.name}</dd></div>
+                          </dl>
+                          <div className="di-library-detail-actions">
+                            <button type="button" onClick={() => copyTextToClipboard(selectedLibraryToken.name)}>复制名称</button>
+                            <button type="button" onClick={() => copyTextToClipboard(selectedLibraryToken.value)}>复制值</button>
+                            <button type="button" onClick={() => copyTextToClipboard(selectedLibraryToken.name.startsWith('--') ? `var(${selectedLibraryToken.name})` : selectedLibraryToken.name)}>复制 var</button>
+                            <button type="button" onClick={() => focusLibraryTokenUsage(selectedLibraryToken)}>定位使用</button>
+                            <button type="button" onClick={() => openLibraryTokenEdit(selectedLibraryToken)}>编辑</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="di-library-workbench-empty">选择一个 token 查看详情</div>
+                      )
+                    ) : libraryTab === 'components' ? (
+                      libraryComponentForm ? (
+                        <div className="di-library-edit-panel">
+                          <div className="di-library-edit-head">
+                            <strong>{libraryComponentForm.mode === 'create' ? '新增组件规格' : '编辑组件规格'}</strong>
+                            <button type="button" className="di-head-icon-btn" onClick={() => setLibraryComponentForm(null)} aria-label="关闭组件规格表单">
+                              <X size={15} strokeWidth={2.2} aria-hidden="true" />
+                            </button>
+                          </div>
+                          <label>
+                            <span>分类</span>
+                            <select value={libraryComponentForm.category} onChange={event => setLibraryComponentForm(prev => prev ? { ...prev, category: event.currentTarget.value as LibraryComponentItemCategory } : prev)}>
+                              {LIBRARY_COMPONENT_CATEGORIES.filter(item => item.key !== 'all').map(item => (
+                                <option key={item.key} value={item.key}>{item.label}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            <span>类型</span>
+                            <input value={libraryComponentForm.type} onChange={event => setLibraryComponentForm(prev => prev ? { ...prev, type: event.currentTarget.value } : prev)} />
+                          </label>
+                          <label>
+                            <span>名称</span>
+                            <input value={libraryComponentForm.label} onChange={event => setLibraryComponentForm(prev => prev ? { ...prev, label: event.currentTarget.value } : prev)} />
+                          </label>
+                          <label>
+                            <span>能力</span>
+                            <input value={libraryComponentForm.summary} onChange={event => setLibraryComponentForm(prev => prev ? { ...prev, summary: event.currentTarget.value } : prev)} />
+                          </label>
+                          <label>
+                            <span>Selector</span>
+                            <input value={libraryComponentForm.selector} onChange={event => setLibraryComponentForm(prev => prev ? { ...prev, selector: event.currentTarget.value } : prev)} />
+                          </label>
+                          <label>
+                            <span>状态</span>
+                            <input value={libraryComponentForm.status} onChange={event => setLibraryComponentForm(prev => prev ? { ...prev, status: event.currentTarget.value } : prev)} />
+                          </label>
+                          <button type="button" className="di-btn-save" onClick={submitLibraryComponentForm}>保存到修改内容</button>
+                        </div>
+                      ) : selectedLibraryComponentSpec ? (
+                        <div className="di-library-detail-card">
+                          <div className="di-library-detail-kicker">{selectedLibraryComponentSpec.component.categoryLabel} / 具体规格</div>
+                          <h3>{selectedLibraryComponentSpec.component.label} / {selectedLibraryComponentSpec.variant.label}</h3>
+                          <div className="di-library-detail-preview di-library-detail-preview--component">
+                            {renderLibraryComponentSpecPreview(selectedLibraryComponentSpec)}
+                          </div>
+                          <div className="di-library-spec-pills" aria-label="组件规格能力">
+                            {selectedLibraryComponentSpec.capabilities.map(capability => (
+                              <span key={capability}>{capability}</span>
+                            ))}
+                          </div>
+                          <dl>
+                            <div><dt>组件族</dt><dd>{selectedLibraryComponentSpec.component.type}</dd></div>
+                            <div><dt>用途</dt><dd>{selectedLibraryComponentSpec.purpose}</dd></div>
+                            <div><dt>Props</dt><dd>{selectedLibraryComponentSpec.variant.propsLabel || '默认 props'}</dd></div>
+                            <div><dt>使用</dt><dd>{selectedLibraryComponentSpec.usageCount === null ? '无法统计' : `${selectedLibraryComponentSpec.usageCount} 次`}</dd></div>
+                            <div><dt>Selector</dt><dd>{selectedLibraryComponentSpec.selector}</dd></div>
+                            <div><dt>Token 绑定</dt><dd>{selectedLibraryComponentSpec.tokenRefs.length ? selectedLibraryComponentSpec.tokenRefs.join(' / ') : '未登记'}</dd></div>
+                            <div><dt>状态</dt><dd>{selectedLibraryComponentSpec.variant.status || selectedLibraryComponentSpec.component.status}</dd></div>
+                          </dl>
+                          <div className="di-library-detail-actions">
+                            <button type="button" onClick={() => copyTextToClipboard(selectedLibraryComponentSpec.selector)}>复制 selector</button>
+                            <button type="button" onClick={() => copyTextToClipboard(selectedLibraryComponentSpec.variant.propsLabel || '')}>复制 props</button>
+                            <button type="button" onClick={() => openLibraryComponentEdit(selectedLibraryComponentSpec.component)}>编辑组件</button>
+                            <button type="button" onClick={() => deleteLibraryComponent(selectedLibraryComponentSpec.component)}>删除草稿</button>
+                          </div>
+                        </div>
+                      ) : selectedLibraryComponent ? (
+                        <div className="di-library-detail-card">
+                          <div className="di-library-detail-kicker">{selectedLibraryComponent.categoryLabel}</div>
+                          <h3>{selectedLibraryComponent.label}</h3>
+                          <div className="di-library-detail-preview di-library-detail-preview--component">
+                            <div className="di-library-component-preview-stage">
+                              {renderLibraryComponentPreview(selectedLibraryComponent, 'detail')}
+                            </div>
+                          </div>
+                          <dl>
+                            <div><dt>类型</dt><dd>{selectedLibraryComponent.type}</dd></div>
+                            <div><dt>分类</dt><dd>{selectedLibraryComponent.categoryLabel}</dd></div>
+                            <div><dt>能力</dt><dd>{selectedLibraryComponent.summary}</dd></div>
+                            <div><dt>Selector</dt><dd>{selectedLibraryComponent.selector}</dd></div>
+                            <div><dt>状态</dt><dd>{selectedLibraryComponent.status}</dd></div>
+                          </dl>
+                          <div className="di-library-detail-actions">
+                            <button type="button" onClick={() => copyTextToClipboard(selectedLibraryComponent.selector)}>复制 selector</button>
+                            <button type="button" onClick={() => openLibraryComponentEdit(selectedLibraryComponent)}>编辑</button>
+                            <button type="button" onClick={() => deleteLibraryComponent(selectedLibraryComponent)}>删除</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="di-library-workbench-empty">选择一个组件规格查看详情</div>
+                      )
+                    ) : libraryTab === 'changes' ? (
+                      <div className="di-library-detail-card">
+                        <div className="di-library-detail-kicker">Changes</div>
+                        <h3>修改篮</h3>
+                        <dl>
+                          <div><dt>对象</dt><dd>{localDraftEntries.length}</dd></div>
+                          <div><dt>修改</dt><dd>{localDraftChangeCount}</dd></div>
+                          <div><dt>链路</dt><dd>只生成 AI 任务，不直接写源码</dd></div>
+                        </dl>
+                        <div className="di-library-detail-actions">
+                          <button type="button" onClick={handleSubmitToAi} disabled={localDraftChangeCount === 0}>{submitMsg || '发送给AI'}</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="di-library-detail-card">
+                        <div className="di-library-detail-kicker">Usage</div>
+                        <h3>使用治理</h3>
+                        <dl>
+                          <div><dt>可统计资源</dt><dd>{libraryUsageItems.length}</dd></div>
+                          <div><dt>删除规则</dt><dd>已使用 token 只能生成“先替换再删除”的任务</dd></div>
+                          <div><dt>定位规则</dt><dd>点击使用次数回到页面选中第一个命中元素</dd></div>
+                        </dl>
+                      </div>
+                    )}
+                    <div className="di-library-basket-card">
+                      <div>
+                        <span>修改篮</span>
+                        <strong>{localDraftChangeCount}</strong>
+                      </div>
+                      <p>{localDraftChangeCount > 0 ? '发送给 AI 前统一复核' : '暂无设计库或样式草稿'}</p>
+                      <button
+                        type="button"
+                        className="di-btn-save"
+                        disabled={localDraftChangeCount === 0}
+                        onClick={handleSubmitToAi}
+                      >
+                        {submitMsg || '发送给AI'}
+                      </button>
+                    </div>
+                  </aside>
+                </div>
+              </div>
+            </div>
+          )}
+
           {componentCreateOpen && (
             <div className="di-component-create-layer" role="presentation">
               <div className="di-component-create-drawer" role="dialog" aria-modal="true" aria-label="创建组件规范">
@@ -5752,175 +7261,177 @@ export function InspectorPanel({
                   </button>
                 </div>
 
-                <div className="di-component-create-summary">
-                  <div>
-                    <span>当前元素</span>
-                    <strong>{componentCreateTargetLabel}</strong>
+                <div className="di-component-create-scroll">
+                  <div className="di-component-create-summary">
+                    <div>
+                      <span>当前元素</span>
+                      <strong>{componentCreateTargetLabel}</strong>
+                    </div>
+                    <code title={componentCreateSelector}>{componentCreateSelector}</code>
+                    {componentCreateDefaultText ? (
+                      <p title={componentCreateDefaultText}>{componentCreateDefaultText}</p>
+                    ) : null}
                   </div>
-                  <code title={componentCreateSelector}>{componentCreateSelector}</code>
-                  {componentCreateDefaultText ? (
-                    <p title={componentCreateDefaultText}>{componentCreateDefaultText}</p>
-                  ) : null}
-                </div>
 
-                <div className="di-component-create-form">
-                  <div className="di-component-create-field di-component-create-field--wide">
-                    <span>容器</span>
-                    <div className="di-component-type-combobox">
-                      <button
-                        type="button"
-                        className="di-component-type-trigger"
-                        onClick={() => {
-                          setComponentCreateContainerMenuOpen(v => !v);
-                          setComponentCreateTypeMenuOpen(false);
-                        }}
-                        aria-label="选择所属容器"
-                        aria-expanded={componentCreateContainerMenuOpen}
-                        aria-haspopup="listbox"
-                      >
-                        <span className="di-component-type-trigger-value">{componentCreateContainerOption.label}</span>
-                        <ChevronDown size={14} strokeWidth={2.2} aria-hidden="true" />
-                      </button>
-                      {componentCreateContainerMenuOpen && (
-                        <div className="di-component-type-menu" role="listbox">
-                          <div className="di-component-type-menu-head">
-                            先确定这个元素服务于哪个结构
-                          </div>
-                          {COMPONENT_CONTAINER_OPTIONS.map(option => (
-                            <button
-                              type="button"
-                              key={option.key}
-                              className={`di-component-type-option${option.key === componentCreateContainer ? ' di-component-type-option--active' : ''}`}
-                              onMouseDown={event => event.preventDefault()}
-                              onClick={() => applyComponentCreateContainer(option.key)}
-                              role="option"
-                              aria-selected={option.key === componentCreateContainer}
-                            >
-                              <strong>{option.label}</strong>
-                              <span>{option.hint}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="di-component-create-field di-component-create-field--wide">
-                    <span>用途</span>
-                    <div className="di-component-type-combobox">
-                      <button
-                        type="button"
-                        className="di-component-type-trigger"
-                        onClick={() => {
-                          setComponentCreateTypeMenuOpen(v => !v);
-                          setComponentCreateContainerMenuOpen(false);
-                        }}
-                        aria-label="选择元素用途"
-                        aria-expanded={componentCreateTypeMenuOpen}
-                        aria-haspopup="listbox"
-                      >
-                        <span className="di-component-type-trigger-value">{componentCreateType || '选择用途'}</span>
-                        <ChevronDown size={14} strokeWidth={2.2} aria-hidden="true" />
-                      </button>
-                      {componentCreateTypeMenuOpen && (
-                        <div className="di-component-type-menu" role="listbox">
-                          <div className="di-component-type-menu-head">
-                            再确定它在容器里的职责
-                          </div>
-                          {componentCreateTypeOptions.map(option => (
-                            <button
-                              type="button"
-                              key={option.label}
-                              className={`di-component-type-option${normalizeComponentType(option.label) === componentCreateTypeQuery ? ' di-component-type-option--active' : ''}`}
-                              onMouseDown={event => event.preventDefault()}
-                              onClick={() => applyComponentCreateType(option.label)}
-                              role="option"
-                              aria-selected={normalizeComponentType(option.label) === componentCreateTypeQuery}
-                            >
-                              <strong>{option.label}</strong>
-                              <span>{option.hint}</span>
-                            </button>
-                          ))}
-                          {!componentCreateTypeOptions.length ? (
-                            <div className="di-component-type-empty">没有匹配用途</div>
-                          ) : null}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <label className="di-component-create-field di-component-create-field--wide">
-                    <span>名称</span>
-                    <input
-                      value={componentSpecDraft.componentName}
-                      onChange={event => {
-                        setComponentCreateNameTouched(true);
-                        syncComponentSpecDraft({ componentName: event.currentTarget.value });
-                      }}
-                      placeholder="page-title"
-                    />
-                  </label>
-                  {componentCreateExistingMatch ? (
-                    <div className="di-component-create-existing">
-                      <div className="di-component-create-existing-copy">
-                        <span>已有同类</span>
-                        <strong>{componentCreateExistingMatch.componentName}</strong>
-                        <small>{componentCreateExistingMatch.usage || componentCreateExistingMatch.targetLabel}</small>
-                      </div>
-                      <div className="di-component-create-existing-actions">
+                  <div className="di-component-create-form">
+                    <div className="di-component-create-field di-component-create-field--wide">
+                      <span>容器</span>
+                      <div className="di-component-type-combobox">
                         <button
                           type="button"
-                          className={componentCreateResolution === 'reuse' ? 'di-segment-pill di-segment-pill--active' : 'di-segment-pill'}
+                          className="di-component-type-trigger"
                           onClick={() => {
-                            setComponentCreateResolution('reuse');
-                            setComponentCreateNameTouched(false);
-                            syncComponentSpecDraft({
-                              sourceMode: '复用已有组件',
-                              action: '复用组件',
-                              componentName: componentCreateExistingMatch.componentName,
-                            });
+                            setComponentCreateContainerMenuOpen(v => !v);
+                            setComponentCreateTypeMenuOpen(false);
                           }}
+                          aria-label="选择所属容器"
+                          aria-expanded={componentCreateContainerMenuOpen}
+                          aria-haspopup="listbox"
                         >
-                          复用已有组件
+                          <span className="di-component-type-trigger-value">{componentCreateContainerOption.label}</span>
+                          <ChevronDown size={14} strokeWidth={2.2} aria-hidden="true" />
                         </button>
-                        <button
-                          type="button"
-                          className={componentCreateResolution === 'new' ? 'di-segment-pill di-segment-pill--active' : 'di-segment-pill'}
-                          onClick={() => {
-                            const nextName = getUniqueComponentName(getComponentNameByType(componentCreateType, selected, componentCreateContainer));
-                            setComponentCreateResolution('new');
-                            setComponentCreateNameTouched(false);
-                            syncComponentSpecDraft({
-                              sourceMode: '新建同类组件',
-                              action: '创建组件',
-                              componentName: nextName,
-                            });
-                          }}
-                        >
-                          新建同类组件
-                        </button>
+                        {componentCreateContainerMenuOpen && (
+                          <div className="di-component-type-menu" role="listbox">
+                            <div className="di-component-type-menu-head">
+                              先确定这个元素服务于哪个结构
+                            </div>
+                            {COMPONENT_CONTAINER_OPTIONS.map(option => (
+                              <button
+                                type="button"
+                                key={option.key}
+                                className={`di-component-type-option${option.key === componentCreateContainer ? ' di-component-type-option--active' : ''}`}
+                                onMouseDown={event => event.preventDefault()}
+                                onClick={() => applyComponentCreateContainer(option.key)}
+                                role="option"
+                                aria-selected={option.key === componentCreateContainer}
+                              >
+                                <strong>{option.label}</strong>
+                                <span>{option.hint}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  ) : null}
-                  <label className="di-component-create-field di-component-create-field--wide">
-                    <span>使用场景</span>
-                    <input
-                      value={componentCreatePurpose}
-                      onChange={event => {
-                        const { value } = event.currentTarget;
-                        setComponentCreatePurpose(value);
-                        syncComponentSpecDraft({ usage: value });
-                      }}
-                      placeholder="用于页面顶部主标题展示"
-                    />
-                  </label>
-                </div>
+                    <div className="di-component-create-field di-component-create-field--wide">
+                      <span>用途</span>
+                      <div className="di-component-type-combobox">
+                        <button
+                          type="button"
+                          className="di-component-type-trigger"
+                          onClick={() => {
+                            setComponentCreateTypeMenuOpen(v => !v);
+                            setComponentCreateContainerMenuOpen(false);
+                          }}
+                          aria-label="选择元素用途"
+                          aria-expanded={componentCreateTypeMenuOpen}
+                          aria-haspopup="listbox"
+                        >
+                          <span className="di-component-type-trigger-value">{componentCreateType || '选择用途'}</span>
+                          <ChevronDown size={14} strokeWidth={2.2} aria-hidden="true" />
+                        </button>
+                        {componentCreateTypeMenuOpen && (
+                          <div className="di-component-type-menu" role="listbox">
+                            <div className="di-component-type-menu-head">
+                              再确定它在容器里的职责
+                            </div>
+                            {componentCreateTypeOptions.map(option => (
+                              <button
+                                type="button"
+                                key={option.label}
+                                className={`di-component-type-option${normalizeComponentType(option.label) === componentCreateTypeQuery ? ' di-component-type-option--active' : ''}`}
+                                onMouseDown={event => event.preventDefault()}
+                                onClick={() => applyComponentCreateType(option.label)}
+                                role="option"
+                                aria-selected={normalizeComponentType(option.label) === componentCreateTypeQuery}
+                              >
+                                <strong>{option.label}</strong>
+                                <span>{option.hint}</span>
+                              </button>
+                            ))}
+                            {!componentCreateTypeOptions.length ? (
+                              <div className="di-component-type-empty">没有匹配用途</div>
+                            ) : null}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <label className="di-component-create-field di-component-create-field--wide">
+                      <span>名称</span>
+                      <input
+                        value={componentSpecDraft.componentName}
+                        onChange={event => {
+                          setComponentCreateNameTouched(true);
+                          syncComponentSpecDraft({ componentName: event.currentTarget.value });
+                        }}
+                        placeholder="page-title"
+                      />
+                    </label>
+                    {componentCreateExistingMatch ? (
+                      <div className="di-component-create-existing">
+                        <div className="di-component-create-existing-copy">
+                          <span>已有同类</span>
+                          <strong>{componentCreateExistingMatch.componentName}</strong>
+                          <small>{componentCreateExistingMatch.usage || componentCreateExistingMatch.targetLabel}</small>
+                        </div>
+                        <div className="di-component-create-existing-actions">
+                          <button
+                            type="button"
+                            className={componentCreateResolution === 'reuse' ? 'di-segment-pill di-segment-pill--active' : 'di-segment-pill'}
+                            onClick={() => {
+                              setComponentCreateResolution('reuse');
+                              setComponentCreateNameTouched(false);
+                              syncComponentSpecDraft({
+                                sourceMode: '复用已有组件',
+                                action: '复用组件',
+                                componentName: componentCreateExistingMatch.componentName,
+                              });
+                            }}
+                          >
+                            复用已有组件
+                          </button>
+                          <button
+                            type="button"
+                            className={componentCreateResolution === 'new' ? 'di-segment-pill di-segment-pill--active' : 'di-segment-pill'}
+                            onClick={() => {
+                              const nextName = getUniqueComponentName(getComponentNameByType(componentCreateType, selected, componentCreateContainer));
+                              setComponentCreateResolution('new');
+                              setComponentCreateNameTouched(false);
+                              syncComponentSpecDraft({
+                                sourceMode: '新建同类组件',
+                                action: '创建组件',
+                                componentName: nextName,
+                              });
+                            }}
+                          >
+                            新建同类组件
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                    <label className="di-component-create-field di-component-create-field--wide">
+                      <span>使用场景</span>
+                      <input
+                        value={componentCreatePurpose}
+                        onChange={event => {
+                          const { value } = event.currentTarget;
+                          setComponentCreatePurpose(value);
+                          syncComponentSpecDraft({ usage: value });
+                        }}
+                        placeholder="用于页面顶部主标题展示"
+                      />
+                    </label>
+                  </div>
 
-                <div className="di-component-create-rules">
-                  <div className="di-component-create-rules-title">组件规则</div>
-                  <ul>
-                    {componentCreateRulePreview.map(rule => (
-                      <li key={rule}>{rule}</li>
-                    ))}
-                  </ul>
+                  <div className="di-component-create-rules">
+                    <div className="di-component-create-rules-title">组件规则</div>
+                    <ul>
+                      {componentCreateRulePreview.map(rule => (
+                        <li key={rule}>{rule}</li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
 
                 <div className="di-component-create-actions">
@@ -6322,237 +7833,6 @@ export function InspectorPanel({
               </div>
             )}
 
-            {showPageShellSummary && isPageShellTarget && (
-              <div className="di-section di-structure-section di-page-shell-section">
-                <div className="di-structure-callout di-page-shell-callout">
-                  <div className="di-structure-callout-copy">
-                    <div className="di-structure-title">页面级容器</div>
-                    <div className="di-structure-desc">
-                      当前对象是页面壳层，优先整理页面结构和区块拆分；不要把整个页面创建成单个组件。
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="di-structure-action"
-                    onClick={handleSendPageShellSpecToAi}
-                    title="生成页面结构规格并复制 AI 任务"
-                  >
-                    生成页面规格
-                  </button>
-                </div>
-                <div className="di-structure-summary-grid">
-                  <div className="di-structure-summary-card">
-                    <div className="di-structure-summary-main">
-                      <span className="di-structure-summary-label">页面区块</span>
-                      <strong>{pageShellSections.length ? `${pageShellSections.length} 个` : '未识别'}</strong>
-                      <small>{pageShellSectionSummary}</small>
-                    </div>
-                    {pageShellSections.length > 0 && (
-                      <button
-                        type="button"
-                        className="di-structure-link"
-                        onClick={() => setStructuralChildrenOpen(value => !value)}
-                      >
-                        {structuralChildrenOpen ? '收起' : '管理'}
-                      </button>
-                    )}
-                  </div>
-                  {structuralChildrenOpen && pageShellSections.length > 0 && (
-                    <div className="di-structure-child-groups">
-                      <div className="di-structure-child-group">
-                        <div className="di-structure-child-group-head">
-                          <span>区块</span>
-                          <small>{pageShellSections.length}</small>
-                        </div>
-                        <div className="di-structure-child-list">
-                          {pageShellSections.map(section => (
-                            <button
-                              type="button"
-                              className="di-structure-child-item"
-                              key={section.key}
-                              onClick={() => selectEl(section.element)}
-                              title={section.selector}
-                            >
-                              <span>{section.kind}</span>
-                              <small>{section.label}</small>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="di-structure-summary-card">
-                    <div className="di-structure-summary-main">
-                      <span className="di-structure-summary-label">页面布局</span>
-                      <strong>页面结构规格</strong>
-                      <small>
-                        {`布局 ${formatLengthControlValue(widthVal)} / ${formatLengthControlValue(heightVal)} · 间距 ${formatLengthControlValue(activePaddingValue)} / ${formatLengthControlValue(activeGapValue)}`}
-                      </small>
-                    </div>
-                    <button
-                      type="button"
-                      className="di-structure-link"
-                      onClick={() => setStructuralStyleOpen(value => !value)}
-                    >
-                      {structuralStyleOpen ? '收起' : '展开调整'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {isCollectionLayoutTarget && collectionLayoutInfo && (
-              <div className="di-section di-structure-section di-layout-container-section">
-                <div className="di-structure-callout di-layout-container-callout">
-                  <div className="di-structure-callout-copy">
-                    <div className="di-structure-title">布局容器</div>
-                    <div className="di-structure-desc">
-                      当前结构用于排列多个同类子项；默认只调整外层位置、间距和尺寸，不改子项内容。
-                    </div>
-                  </div>
-                </div>
-                <div className="di-structure-summary-grid">
-                  <div className="di-structure-summary-card">
-                    <div className="di-structure-summary-main">
-                      <span className="di-structure-summary-label">子项</span>
-                      <strong>{`${collectionLayoutInfo.itemCount} 个 ${collectionLayoutInfo.itemLabel}`}</strong>
-                      <small>只用于选中子项，不在父层编辑子项</small>
-                    </div>
-                    {collectionLayoutInfo.items.length > 0 && (
-                      <button
-                        type="button"
-                        className="di-structure-link"
-                        onClick={() => setStructuralChildrenOpen(value => !value)}
-                      >
-                        {structuralChildrenOpen ? '收起' : '管理'}
-                      </button>
-                    )}
-                  </div>
-                  {structuralChildrenOpen && collectionLayoutInfo.items.length > 0 && (
-                    <div className="di-structure-child-groups">
-                      <div className="di-structure-child-group">
-                        <div className="di-structure-child-group-head">
-                          <span>{collectionLayoutInfo.itemLabel}</span>
-                          <small>{collectionLayoutInfo.itemCount}</small>
-                        </div>
-                        <div className="di-structure-child-list">
-                          {collectionLayoutInfo.items.map(item => (
-                            <button
-                              type="button"
-                              className="di-structure-child-item"
-                              key={item.key}
-                              onClick={() => selectEl(item.element)}
-                              title={item.selector}
-                            >
-                              <span>{collectionLayoutInfo.itemLabel}</span>
-                              <small>{item.label}</small>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="di-structure-summary-card">
-                    <div className="di-structure-summary-main">
-                      <span className="di-structure-summary-label">整体布局</span>
-                      <strong>{`${collectionLayoutInfo.layoutLabel} 布局`}</strong>
-                      <small>
-                        {`布局 ${formatLengthControlValue(widthVal)} / ${formatLengthControlValue(heightVal)} · 间距 ${formatLengthControlValue(activePaddingValue)} / ${formatLengthControlValue(activeGapValue)}`}
-                      </small>
-                    </div>
-                    <button
-                      type="button"
-                      className="di-structure-link"
-                      onClick={() => setStructuralStyleOpen(value => !value)}
-                    >
-                      {structuralStyleOpen ? '收起' : '展开调整'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {showStructuralContainerSummary && isStructuralContainerTarget && (
-              <div className="di-section di-structure-section">
-                <div className="di-structure-callout">
-                  <div className="di-structure-callout-copy">
-                    <div className="di-structure-title">建议沉淀为组件</div>
-                    <div className="di-structure-desc">
-                      当前结构包含多个子内容，优先先定义容器和用途；子元素规则在创建组件时确认。
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="di-structure-action"
-                    onClick={openComponentCreateDrawer}
-                    title="按当前结构创建组件规范"
-                  >
-                    创建组件
-                  </button>
-                </div>
-                <div className="di-structure-summary-grid">
-                  <div className="di-structure-summary-card">
-                    <div className="di-structure-summary-main">
-                      <span className="di-structure-summary-label">子元素</span>
-                      <strong>{structuralChildCount ? `${structuralChildCount} 个` : '未识别'}</strong>
-                      <small>{structuralChildSummary}</small>
-                    </div>
-                    {structuralChildGroups.length > 0 && (
-                      <button
-                        type="button"
-                        className="di-structure-link"
-                        onClick={() => setStructuralChildrenOpen(value => !value)}
-                      >
-                        {structuralChildrenOpen ? '收起' : '管理'}
-                      </button>
-                    )}
-                  </div>
-                  {structuralChildrenOpen && (
-                    <div className="di-structure-child-groups">
-                      {structuralChildGroups.map(group => (
-                        <div className="di-structure-child-group" key={group.key}>
-                          <div className="di-structure-child-group-head">
-                            <span>{group.label}</span>
-                            <small>{group.count}</small>
-                          </div>
-                          <div className="di-structure-child-list">
-                            {group.items.map((item, index) => (
-                              <button
-                                type="button"
-                                className="di-structure-child-item"
-                                key={`${group.key}-${index}`}
-                                onClick={() => selectEl(item.element)}
-                                title={item.value}
-                              >
-                                <span>{item.label}</span>
-                                <small>{item.value}</small>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="di-structure-summary-card">
-                    <div className="di-structure-summary-main">
-                      <span className="di-structure-summary-label">整体样式</span>
-                      <strong>结构辅助调整</strong>
-                      <small>
-                        {`布局 ${formatLengthControlValue(widthVal)} / ${formatLengthControlValue(heightVal)} · 间距 ${formatLengthControlValue(activePaddingValue)} / ${formatLengthControlValue(activeGapValue)}`}
-                      </small>
-                    </div>
-                    <button
-                      type="button"
-                      className="di-structure-link"
-                      onClick={() => setStructuralStyleOpen(value => !value)}
-                    >
-                      {structuralStyleOpen ? '收起' : '展开调整'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {componentMeta && (
               <div className="di-section">
                 <div className="di-section-title">组件</div>
@@ -6795,8 +8075,8 @@ export function InspectorPanel({
             {!hideTextStyleSection && (
             <div className="di-section di-text-section">
               <div className="di-section-title-row di-section-title-row--action">
-                <div className="di-section-title">{isStructuralContainerTarget ? '子文本样式' : '文字'}</div>
-                {renderSectionReset('text', isStructuralContainerTarget ? '子文本样式' : '文字')}
+                <div className="di-section-title">文字</div>
+                {renderSectionReset('text', '文字')}
               </div>
               <div className="di-text-card">
               {/* 文字样式：组件化预设 + 单项覆盖 */}
@@ -8278,6 +9558,7 @@ export default function DevInspector() {
           targetEl={p.el}
           tokenMap={tokenMap}
           onTokenMapUpdate={updates => setTokenMap(prev => ({ ...prev, ...updates }))}
+          onTargetChange={el => setPanels(prev => prev.map(item => item.id === p.id ? { ...item, el } : item))}
           onClose={() => setPanels(prev => prev.filter(x => x.id !== p.id))}
         />
       ))}

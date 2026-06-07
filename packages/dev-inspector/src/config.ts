@@ -1,7 +1,33 @@
 // ─── 类型 ────────────────────────────────────────────────────
+import type { ReactNode } from 'react';
 
 export type PaletteColor = { label: string; val: string; token: string };
 export type PaletteGroup = { group: string; colors: PaletteColor[] };
+
+export type DevInspectorComponentPreviewCategory = 'action' | 'display' | 'feedback' | 'container' | 'form' | 'icon' | 'custom';
+
+export type DevInspectorComponentPreviewVariant = {
+  id: string;
+  label: string;
+  group?: string;
+  propsLabel?: string;
+  selector?: string;
+  usage?: string;
+  capabilities?: string[];
+  tokenRefs?: string[];
+  status?: string;
+  render: () => ReactNode;
+};
+
+export type DevInspectorComponentPreview = {
+  type: string;
+  label: string;
+  category?: DevInspectorComponentPreviewCategory;
+  summary?: string;
+  selector?: string;
+  status?: string;
+  variants: DevInspectorComponentPreviewVariant[];
+};
 
 export type ShadowToken = {
   cssVar: string;
@@ -97,6 +123,7 @@ export type DevInspectorConfig = {
   rootId: string;
   endpoints: DevInspectorEndpoints;
   tokens: DevInspectorTokenConfig;
+  componentPreviews: DevInspectorComponentPreview[];
 };
 
 export type DevInspectorConfigOverrides = Omit<Partial<DevInspectorConfig>, 'endpoints' | 'tokens'> & {
@@ -249,6 +276,7 @@ export const defaultDevInspectorConfig: DevInspectorConfig = {
     reveal: '/__dev/reveal',
   },
   tokens: FALLBACK_TOKENS,
+  componentPreviews: [],
 };
 
 export function mergeDevInspectorConfig(

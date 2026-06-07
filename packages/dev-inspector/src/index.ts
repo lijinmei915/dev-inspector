@@ -4,6 +4,9 @@ export { mountDevInspector } from './mount';
 export { defaultDevInspectorConfig, mergeDevInspectorConfig } from './config';
 export type {
   DevInspectorConfig,
+  DevInspectorComponentPreview,
+  DevInspectorComponentPreviewCategory,
+  DevInspectorComponentPreviewVariant,
   DevInspectorConfigOverrides,
   DevInspectorEndpoints,
   DevInspectorTokenConfig,
