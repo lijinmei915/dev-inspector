@@ -1,0 +1,32 @@
+{
+  "title": {
+    "fontSize": "15px",
+    "fontWeight": "700",
+    "lineHeight": "1.4",
+    "color": "#111827"
+  },
+  "sectionLabel": {
+    "fontSize": "12px",
+    "fontWeight": "700",
+    "lineHeight": "1.4",
+    "color": "#374151"
+  },
+  "body": {
+    "fontSize": "12px",
+    "fontWeight": "400",
+    "lineHeight": "1.5",
+    "color": "#6b7280"
+  },
+  "meta": {
+    "fontSize": "11px",
+    "fontWeight": "600",
+    "lineHeight": "1.35",
+    "color": "#94a3b8"
+  },
+  "tinyBadge": {
+    "fontSize": "10px",
+    "fontWeight": "700",
+    "lineHeight": "1.2",
+    "color": "#64748b"
+  }
+}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, ChevronDown, CircleHelp, Component as ComponentIcon, Library as LibraryIcon, Minus, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, Check, ChevronDown, CircleHelp, Component as ComponentIcon, Library as LibraryIcon, Minus, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import './dev-inspector.css';
 import { useDevInspectorConfig } from './DevInspectorProvider';
 import type { DevInspectorTokenConfig } from './config';
@@ -15,6 +15,12 @@ import type {
 } from './config';
 import { buildComponentMakerPrompt, formatComponentMakerSpecDraft, formatComponentMakerVariantDraft } from './plugins/component-maker';
 import type { ComponentMakerContext, ComponentMakerEditablePart, ComponentMakerSpecDraft, ComponentMakerVariantDraft, ComponentMakerVariantItem } from './plugins/component-maker';
+
+declare global {
+  interface Window {
+    __DEV_INSPECTOR_LAST_PROMPT__?: string;
+  }
+}
 
 function calcDropPos(rect: DOMRect, dropHeight = 280, dropWidth = 280): { top: number; left: number } {
   const spaceBelow = window.innerHeight - rect.bottom;
@@ -36,6 +42,18 @@ function handleArrowKeyStep<T extends HTMLElement>(
   if (event.key === 'Enter') onEnter?.();
 }
 
+function renderSubmitLabel(submitMsg: string) {
+  if (submitMsg === '已复制') {
+    return (
+      <span className="di-btn-save-content">
+        <Check size={14} strokeWidth={2.4} aria-hidden="true" />
+        <span>已复制</span>
+      </span>
+    );
+  }
+  return submitMsg || '发送给AI';
+}
+
 // ─── 常量（Inspector 专属）───────────────────────────────────────
 const COLOR_PROPS = [
   { label: '背景色', prop: 'background-color' },
@@ -43,8 +61,9 @@ const COLOR_PROPS = [
 
 // hex/rgba → 短标签（通过色板反查）
 function getColorLabel(val: string, colorPalette: DevInspectorTokenConfig['colorPalette']): string | null {
+  const normalizedVal = resolveColorValue(val);
   for (const g of colorPalette) {
-    const found = g.colors.find((c: PaletteColor) => c.val === val);
+    const found = g.colors.find((c: PaletteColor) => resolveColorValue(c.val) === normalizedVal);
     if (found) return `${g.group}·${found.label}`;
   }
   return null;
@@ -397,9 +416,26 @@ function isTextEntryTarget(target: EventTarget | null): boolean {
 function normalizeColor(val: string): string {
   const raw = val.trim();
   if (raw === 'transparent' || /^rgba\(\s*0,\s*0,\s*0,\s*0\s*\)$/i.test(raw)) return 'transparent';
-  const m = val.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+  const m = raw.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/);
   if (m) return '#' + [m[1],m[2],m[3]].map(n=>parseInt(n).toString(16).padStart(2,'0')).join('');
+  if (/^#[0-9a-f]{3,8}$/i.test(raw)) return raw.toLowerCase();
   return raw;
+}
+
+function resolveColorValue(val: string): string {
+  const normalized = normalizeColor(val || '');
+  if (!normalized || normalized === 'transparent') return normalized || 'transparent';
+  if (/^#[0-9a-f]{6}$/i.test(normalized)) return normalized;
+  if (typeof document === 'undefined' || !document.body) return normalized;
+  const probe = document.createElement('div');
+  probe.style.color = normalized;
+  probe.style.position = 'fixed';
+  probe.style.opacity = '0';
+  probe.style.pointerEvents = 'none';
+  document.body.appendChild(probe);
+  const computed = normalizeColor(getComputedStyle(probe).color.trim());
+  probe.remove();
+  return computed || normalized;
 }
 
 function isTransparentColor(val: string): boolean {
@@ -582,7 +618,7 @@ function getComponentClasses(el: Element): string[] {
 
   const classes = getClasses(el);
   const cardBaseClass = classes.find(className =>
-    /(^|[-_])card([-_]|$)/i.test(className)
+    isCardRootClass(className)
     && !className.includes('--'),
   );
   if (cardBaseClass) return [cardBaseClass];
@@ -629,6 +665,7 @@ const TEXT_ONLY_TAGS = new Set([
 const TEXT_SEMANTIC_CLASS_RE = /(^|[-_])(caption|copy|desc|description|eyebrow|heading|label|subtitle|text|title)([-_]|$)/i;
 const STRUCTURAL_CONTAINER_CLASS_RE = /(^|[-_])(area|block|card|container|content|group|grid|item|layout|list|panel|row|section|shell|stack|zone)([-_]|$)/i;
 const PAGE_SHELL_CLASS_RE = /(^|[-_])(app|page|root|screen|shell|workspace)([-_]|$)/i;
+const CARD_ROOT_CLASS_NAMES = new Set(['task-card']);
 const TEXT_GROUP_EXCLUDED_SELECTOR = [
   'button',
   'input',
@@ -661,6 +698,14 @@ function hasTextSemanticClass(el: Element): boolean {
     && !/^lucide(-|$)/.test(className)
     && TEXT_SEMANTIC_CLASS_RE.test(className),
   );
+}
+
+function getRegisteredComponentType(el: Element): string {
+  return (el.getAttribute('data-component') || '').trim();
+}
+
+function isCardRootClass(className: string): boolean {
+  return CARD_ROOT_CLASS_NAMES.has(className) || /(^|[-_])card($|--)/i.test(className);
 }
 
 function hasStructuralContainerClass(el: Element): boolean {
@@ -833,6 +878,18 @@ function getInspectorComponentMeta(el: Element): InspectorComponentMeta | null {
   const tag = el.tagName.toLowerCase();
   const classes = getClasses(el);
   const componentClasses = getComponentClasses(el);
+  const registeredComponentType = getRegisteredComponentType(el);
+
+  if (registeredComponentType) {
+    const type = registeredComponentType;
+    return {
+      name: componentClasses[0] ?? type,
+      type,
+      layer: 'Component',
+      variant: inferVariantFromClasses(classes),
+      state: inferStateFromElement(el, classes),
+    };
+  }
 
   if (tag === 'svg' && classes.includes('lucide')) {
     const iconClass = classes.find(className => /^lucide-/.test(className));
@@ -856,9 +913,9 @@ function getInspectorComponentMeta(el: Element): InspectorComponentMeta | null {
     };
   }
 
-  if (classIncludes(classes, /(^|[-_])card([-_]|$)/i)) {
+  if (classes.some(isCardRootClass)) {
     return {
-      name: componentClasses.find(className => /card/i.test(className)) ?? componentClasses[0] ?? 'card',
+      name: componentClasses.find(className => isCardRootClass(className)) ?? componentClasses[0] ?? 'card',
       type: 'Card',
       layer: 'Component',
       variant: inferCardVariant(classes),
@@ -1676,6 +1733,15 @@ function isInsidePanel(el: Element): boolean {
   return el.closest('.di-panel') !== null || el.closest('.di-trigger') !== null || el.closest('.di-label') !== null;
 }
 
+function resolveSelectionTarget(raw: Element): Element {
+  let cursor: Element | null = raw;
+  while (cursor && cursor !== document.body && cursor !== document.documentElement) {
+    if (getInspectorComponentMeta(cursor)) return cursor;
+    cursor = cursor.parentElement;
+  }
+  return raw;
+}
+
 function pickPanelElement(x: number, y: number, panel: HTMLElement, excluded?: Element): Element | null {
   const stack = document.elementsFromPoint(x, y);
   return stack.find(el =>
@@ -2323,6 +2389,137 @@ function getTextContent(el: Element): string | null {
   return text.length > 0 ? el.textContent?.trim() ?? null : null;
 }
 
+type ComponentElementInfo = {
+  key: string;
+  label: string;
+  selector: string;
+  text: string;
+  style: string;
+  spacing: string;
+  styleStatus: 'token' | 'raw';
+  spacingStatus: 'token' | 'raw' | null;
+};
+
+type MatchBadgeTone = 'matched' | 'pending' | 'token' | 'raw';
+
+function MatchBadge({
+  label,
+  tooltip,
+  tone,
+}: {
+  label: string;
+  tooltip: string;
+  tone: MatchBadgeTone;
+}) {
+  return (
+    <span
+      className={`di-match-badge di-match-badge--${tone}`}
+      title={tooltip}
+      data-tooltip={tooltip}
+      tabIndex={0}
+    >
+      {label}
+    </span>
+  );
+}
+
+function getComputedMargin(el: Element): string {
+  const cs = getComputedStyle(el);
+  const t = cs.marginTop, r = cs.marginRight, b = cs.marginBottom, l = cs.marginLeft;
+  if (t === r && r === b && b === l) return t;
+  return `${t} ${r} ${b} ${l}`;
+}
+
+function formatReadableColor(value: string): string {
+  if (!value || isTransparentColor(value)) return '透明';
+  return formatColorDisplay(resolveColorValue(value));
+}
+
+function getComponentElementStyleSummary(el: Element): string {
+  const cs = getComputedStyle(el);
+  const parts: string[] = [];
+  const text = getTextContent(el);
+  const tag = el.tagName.toLowerCase();
+  const borderWidth = getNumericCssValue(cs.borderTopWidth);
+  const radius = cs.borderRadius.trim();
+  const bg = cs.backgroundColor.trim();
+  const color = cs.color.trim();
+
+  if (text || /^(p|span|a|button|label|h1|h2|h3|h4|h5|h6|li|strong|em)$/i.test(tag)) {
+    parts.push(`字 ${formatLengthControlValue(cs.fontSize)}`);
+    parts.push(`重 ${cs.fontWeight}`);
+    parts.push(`色 ${formatReadableColor(color)}`);
+  }
+
+  if (!isTransparentColor(bg)) {
+    parts.push(`背景 ${formatReadableColor(bg)}`);
+  }
+
+  if (borderWidth > 0 && !isTransparentColor(cs.borderTopColor)) {
+    parts.push(`描边 ${formatLengthControlValue(cs.borderTopWidth)} ${formatReadableColor(cs.borderTopColor)}`);
+  }
+
+  if (!isZeroLengthValue(radius)) {
+    parts.push(`圆角 ${formatLengthControlValue(radius)}`);
+  }
+
+  return parts.join(' / ') || '无明显样式';
+}
+
+function getComponentElementSpacingSummary(el: Element): string {
+  const cs = getComputedStyle(el);
+  const parts: string[] = [];
+  const paddingSummary = getSpaceSummary('padding', getComputedPadding(el));
+  const marginSummary = getSpaceSummary('margin', getComputedMargin(el));
+  const gapSummary = canControlElementGap(el) ? getSpaceSummary('gap', cs.gap.trim()) : '';
+
+  if (paddingSummary) parts.push(`内边距 ${paddingSummary}`);
+  if (marginSummary) parts.push(`外边距 ${marginSummary}`);
+  if (gapSummary) parts.push(`元素间距 ${gapSummary.replace(/^gap\s*/i, '')}`);
+
+  return parts.join(' / ') || '无额外间距';
+}
+
+function getComponentElementStyleStatus(
+  el: Element,
+  tokenMap: Record<string, string>,
+  colorPalette: DevInspectorTokenConfig['colorPalette'],
+  tokenLabels: DevInspectorTokenConfig['tokenLabels'],
+  typographyTokens: DevInspectorTokenConfig['typographyTokens'],
+): 'token' | 'raw' {
+  const cs = getComputedStyle(el);
+  const colorInfo = getDisplayLabel(normalizeColor(cs.color), tokenMap, colorPalette, tokenLabels);
+  const backgroundInfo = getDisplayLabel(normalizeColor(cs.backgroundColor), tokenMap, colorPalette, tokenLabels);
+  const borderInfo = getDisplayLabel(normalizeColor(cs.borderTopColor), tokenMap, colorPalette, tokenLabels);
+  const typographyMatched = Boolean(getTypographyToken(cs.fontSize.trim(), cs.fontWeight.trim(), normalizeColor(cs.color), typographyTokens));
+
+  if (typographyMatched) return 'token';
+  if (!colorInfo.isHardcoded || !backgroundInfo.isHardcoded || !borderInfo.isHardcoded) return 'token';
+  return 'raw';
+}
+
+function getComponentElementSpacingStatus(
+  el: Element,
+  spaceSteps: DevInspectorTokenConfig['spaceSteps'],
+): 'token' | 'raw' | null {
+  const cs = getComputedStyle(el);
+  const paddingValue = getComputedPadding(el);
+  const marginValue = getComputedMargin(el);
+  const gapValue = cs.gap.trim();
+  const paddingSummary = getSpaceSummary('padding', paddingValue);
+  const marginSummary = getSpaceSummary('margin', marginValue);
+  const gapSummary = canControlElementGap(el) ? getSpaceSummary('gap', gapValue) : '';
+  const hasSpacing = Boolean(paddingSummary || marginSummary || gapSummary);
+
+  if (!hasSpacing) return null;
+
+  const paddingMatched = !paddingSummary || Boolean(getSpaceStepMatch('padding', paddingValue, spaceSteps));
+  const marginMatched = !marginSummary || Boolean(getSpaceStepMatch('margin', marginValue, spaceSteps));
+  const gapMatched = !gapSummary || Boolean(getSpaceStepMatch('gap', gapValue, spaceSteps));
+
+  return paddingMatched && marginMatched && gapMatched ? 'token' : 'raw';
+}
+
 const TOKEN_TYPES = [
   { key: 'bg',     label: '背景色', code: 'bg' },
   { key: 'text',   label: '文字色', code: 'text' },
@@ -2355,9 +2552,15 @@ function ColorDropdown({ value, onChange, onClose, onAddToken, pos, colorPalette
   pos?: { top: number; left: number };
   colorPalette: DevInspectorTokenConfig['colorPalette'];
 }) {
-  const initHex = value.startsWith('#') ? value : '#6b7280';
+  const resolvedValue = resolveColorValue(value);
+  const initHex = /^#[0-9a-f]{6}$/i.test(resolvedValue) ? resolvedValue : '#6b7280';
+  const initAlpha = (() => {
+    const rgbaMatch = value.match(/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)$/i);
+    if (!rgbaMatch) return 100;
+    return Math.max(0, Math.min(100, Math.round(parseFloat(rgbaMatch[4]) * 100)));
+  })();
   const [hexInput, setHexInput] = useState(initHex);
-  const [alpha, setAlpha]       = useState(100);
+  const [alpha, setAlpha]       = useState(initAlpha);
   const customColorInputRef = useRef<HTMLInputElement | null>(null);
 
   function buildColor(hex: string, a: number): string {
@@ -2604,10 +2807,11 @@ function getDisplayLabel(
   tokenLabels: DevInspectorTokenConfig['tokenLabels'],
 ): { label: string; sub: string; isHardcoded: boolean } {
   if (isTransparentColor(val)) return { label: '无', sub: '', isHardcoded: true };
-  const displayVal = formatColorDisplay(val);
-  const paletteLabel = getColorLabel(val, colorPalette);
+  const resolvedVal = resolveColorValue(val);
+  const displayVal = formatColorDisplay(resolvedVal);
+  const paletteLabel = getColorLabel(resolvedVal, colorPalette);
   if (paletteLabel) return { label: paletteLabel, sub: displayVal, isHardcoded: false };
-  const token = tokenMap[val];
+  const token = tokenMap[val] ?? tokenMap[resolvedVal];
   if (token) return { label: tokenLabels[token] ?? token.replace('--', ''), sub: displayVal, isHardcoded: false };
   return { label: displayVal, sub: '', isHardcoded: true };
 }
@@ -2950,6 +3154,7 @@ export function InspectorPanel({
   const {
     colorPalette,
     tokenLabels,
+    inspectorTypography,
     radiusPresets,
     spaceSteps,
     borderWidthSteps,
@@ -2964,6 +3169,28 @@ export function InspectorPanel({
     { cssVar: '', value: 'none', label: '无', usage: '不使用阴影' },
     ...shadowTokens,
   ];
+  const inspectorTypographyVars = {
+    '--di-text-title-size': inspectorTypography.title.fontSize,
+    '--di-text-title-weight': inspectorTypography.title.fontWeight,
+    '--di-text-title-line-height': inspectorTypography.title.lineHeight,
+    '--di-text-title-color': inspectorTypography.title.color,
+    '--di-text-label-size': inspectorTypography.sectionLabel.fontSize,
+    '--di-text-label-weight': inspectorTypography.sectionLabel.fontWeight,
+    '--di-text-label-line-height': inspectorTypography.sectionLabel.lineHeight,
+    '--di-text-label-color': inspectorTypography.sectionLabel.color,
+    '--di-text-body-size': inspectorTypography.body.fontSize,
+    '--di-text-body-weight': inspectorTypography.body.fontWeight,
+    '--di-text-body-line-height': inspectorTypography.body.lineHeight,
+    '--di-text-body-color': inspectorTypography.body.color,
+    '--di-text-meta-size': inspectorTypography.meta.fontSize,
+    '--di-text-meta-weight': inspectorTypography.meta.fontWeight,
+    '--di-text-meta-line-height': inspectorTypography.meta.lineHeight,
+    '--di-text-meta-color': inspectorTypography.meta.color,
+    '--di-text-tiny-badge-size': inspectorTypography.tinyBadge.fontSize,
+    '--di-text-tiny-badge-weight': inspectorTypography.tinyBadge.fontWeight,
+    '--di-text-tiny-badge-line-height': inspectorTypography.tinyBadge.lineHeight,
+    '--di-text-tiny-badge-color': inspectorTypography.tinyBadge.color,
+  } as React.CSSProperties;
   const [isEditing, setIsEditing]   = useState(false);
   const panelElRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected]     = useState<Element>(targetEl);
@@ -3063,6 +3290,9 @@ export function InspectorPanel({
   const [cardVariantVal, setCardVariantVal] = useState<CardVariantKey>('default');
   const [cardVariantClassVal, setCardVariantClassVal] = useState('');
   const [pendingCardVariant, setPendingCardVariant] = useState<CardVariantKey | ''>('');
+  const [componentInfoOpen, setComponentInfoOpen] = useState(false);
+  const [annotationOpen, setAnnotationOpen] = useState(false);
+  const [annotationText, setAnnotationText] = useState('');
   const [componentMakerSourceMode, setComponentMakerSourceMode] = useState<ComponentMakerSourceMode>('new');
   const [componentMakerAction, setComponentMakerAction] = useState<ComponentMakerAction>('create-current');
   const [componentSpecDraft, setComponentSpecDraft] = useState<ComponentMakerSpecDraft>(EMPTY_COMPONENT_SPEC_DRAFT);
@@ -3110,6 +3340,7 @@ export function InspectorPanel({
 
   useEffect(() => { modalOpenRef.current = addTokenModal !== null; }, [addTokenModal]);
   useEffect(() => { localDraftsRef.current = localDrafts; }, [localDrafts]);
+  useEffect(() => { setComponentInfoOpen(false); }, [selected]);
 
   const formatStyleIntentSummary = useCallback((r: any): StyleIntentSummary => ({
     pendingCount: r.pendingCount ?? 0,
@@ -3170,6 +3401,53 @@ export function InspectorPanel({
     });
   }
 
+  function getAnnotationTargetInfo(el: Element): Pick<LocalDraftEntry, 'key' | 'selector' | 'targetLabel' | 'scopeLabel'> {
+    const componentMeta = getInspectorComponentMeta(el);
+    const selector = getSelectorForScope(el, 'current');
+    return {
+      key: `current:${selector}`,
+      selector,
+      targetLabel: getTargetDisplayLabel(el, componentMeta),
+      scopeLabel: '当前元素',
+    };
+  }
+
+  function getAnnotationChange(changes: LocalDraftChange[] = []): LocalDraftChange | undefined {
+    return changes.find(change => change.prop === 'annotation:intent');
+  }
+
+  function updateAnnotationDraft(nextText: string) {
+    const el = selectedRef.current;
+    if (!el) return;
+    const text = nextText.trim();
+    const info = getAnnotationTargetInfo(el);
+    setLocalDrafts(prev => {
+      const existing = prev[info.key];
+      const remainingChanges = existing?.changes.filter(change => change.prop !== 'annotation:intent') ?? [];
+      if (!text) {
+        if (!existing) return prev;
+        const next = { ...prev };
+        if (remainingChanges.length === 0) {
+          delete next[info.key];
+        } else {
+          next[info.key] = { ...existing, changes: remainingChanges, updatedAt: Date.now() };
+        }
+        return next;
+      }
+      const change: LocalDraftChange = {
+        prop: 'annotation:intent',
+        from: 'AI识别',
+        val: text,
+      };
+      const nextEntry: LocalDraftEntry = {
+        ...info,
+        changes: [...remainingChanges, change],
+        updatedAt: Date.now(),
+      };
+      return { ...prev, [info.key]: nextEntry };
+    });
+  }
+
   // 选中逻辑
   const selectEl = useCallback((el: Element) => {
     selectedRef.current = el;
@@ -3181,6 +3459,8 @@ export function InspectorPanel({
     const elCs = getComputedStyle(el);
     const selectedComponentMeta = getInspectorComponentMeta(el);
     const selectedCapability = getComponentCapability(selectedComponentMeta);
+    const annotationDraft = localDraftsRef.current[getAnnotationTargetInfo(el).key];
+    setAnnotationText(getAnnotationChange(annotationDraft?.changes)?.val ?? '');
     const isButtonComponent = selectedCapability?.type === 'Button';
     const isIconComponent = selectedCapability?.type === 'Icon';
     const isBadgeComponent = selectedCapability?.type === 'Badge';
@@ -3684,6 +3964,16 @@ export function InspectorPanel({
     }
     setPendingBadgeStatus(status);
     setBadgeStatusOnTargets(targets, status);
+  }
+
+  function updateBadgeStatusOnElement(element: Element, status: BadgeStatusKey) {
+    const currentStatus = inferBadgeStatus(getClasses(element));
+    const currentClass = getBadgeStatusClass(element);
+    if (status === currentStatus) {
+      setBadgeStatusOnTargets([element], currentStatus, currentClass);
+      return;
+    }
+    setBadgeStatusOnTargets([element], status);
   }
 
   function updateCardVariant(variant: CardVariantKey) {
@@ -4675,6 +4965,7 @@ export function InspectorPanel({
 
   function copyPluginPrompt(prompt: string, successMsg: string) {
     if (!prompt) return;
+    debugAiPrompt(prompt, 'plugin');
     copyTextToClipboard(prompt)
       .then(copied => {
         setPluginMsg(copied ? successMsg : '复制失败');
@@ -5150,24 +5441,18 @@ export function InspectorPanel({
     changes: { prop: string; from: string; val: string }[];
     note?: string;
   }) {
-    const changes = params.changes
-      .map((change, index) => `${index + 1}. ${getChangeLabel(change.prop)}：${formatStoredChangeRecordValue(change.prop, change.from)} → ${formatStoredChangeRecordValue(change.prop, change.val)}`)
-      .join('\n');
-    const latestHint = params.entryId
-      ? `优先处理 id = ${params.entryId} 这条记录。`
-      : '这条任务来自 DevInspector 当前选中元素。';
+    const changes = formatPromptChanges(params.changes);
     return [
-      'DevInspector 样式任务',
       `页面：${params.pageLabel}`,
-      `元素：${params.targetLabel}`,
+      '待处理对象：1',
+      `1. 元素：${params.targetLabel}`,
       `范围：${params.scopeLabel}`,
       `选择器：${params.selector}`,
+      `类型：${getPromptChangeTypes(params.changes).join(' / ') || 'none'}`,
       '改动：',
-      changes || '无样式改动',
+      changes || '1. 无改动',
       ...(params.note ? ['补充：', params.note] : []),
-      '定位提示：',
-      latestHint,
-      '请优先定位该选择器对应的组件或样式源码，判断是否应固化为正式组件样式；不要手改 dist。',
+      '给AI：按选择器先定位源码，再判断落为组件样式、token、局部覆盖或实现约束；不要手改 dist。',
     ].join('\n');
   }
 
@@ -5178,38 +5463,74 @@ export function InspectorPanel({
       || change.prop.startsWith('component-variant-group:')
     )));
     const hasLibraryChange = drafts.some(draft => draft.changes.some(change => change.prop.startsWith('library-')));
+    const mode = hasLibraryChange
+      ? 'library-crud'
+      : hasComponentSpec ? 'component-spec' : 'style-update';
     const sections = drafts
       .sort((a, b) => a.updatedAt - b.updatedAt)
       .map((draft, index) => {
-      const changes = draft.changes
-          .map((change, changeIndex) => `${changeIndex + 1}. ${getChangeLabel(change.prop)}：${formatStoredChangeRecordValue(change.prop, change.from)} → ${formatStoredChangeRecordValue(change.prop, change.val)}`)
-          .join('\n');
+      const changes = formatPromptChanges(draft.changes);
         return [
           `${index + 1}. 元素：${draft.targetLabel}`,
           `范围：${draft.scopeLabel}`,
           `选择器：${draft.selector}`,
+          `类型：${getPromptChangeTypes(draft.changes).join(' / ') || 'none'}`,
           '改动：',
-          changes || '无样式改动',
+          changes || '1. 无改动',
         ].join('\n');
       })
       .join('\n\n');
-    const title = hasLibraryChange
-      ? 'DevInspector 设计库 / 组件 / 样式任务'
-      : hasComponentSpec ? 'DevInspector 组件 / 样式任务' : 'DevInspector 样式任务';
-    const locationHint = hasLibraryChange
-      ? '这些内容来自 DevInspector 设计库工作台；Token / Component 的增删改都是用户确认的受控草稿，请先定位设计 token 配置、组件能力表或源码中的正式定义，再判断如何落地；删除操作需先处理使用关系，不要手改 dist。'
+    const aiHint = hasLibraryChange
+      ? '给AI：先定位正式 token 配置、组件能力表或源码定义，再处理增删改；删除前先检查使用关系；不要手改 dist。'
       : hasComponentSpec
-      ? '这些内容来自 DevInspector 本次修改内容；组件规格和新变体是用户确认的草稿，请按组件名、可编辑内容、变体维度、状态、尺寸和样式规则定位源码落地；不要手改 dist。'
-      : '这些内容来自 DevInspector 本次修改内容，请按对象逐一定位源码，判断是否应固化为组件样式、token 或局部覆盖；不要手改 dist。';
+      ? '给AI：组件规格和新变体按已确认草稿处理；先定位组件定义、可编辑内容、变体维度和 token 映射；不要手改 dist。'
+      : '给AI：按对象逐一定位源码，再判断落为组件样式、token、局部覆盖或实现约束；不要手改 dist。';
     return [
-      title,
       `页面：${document.title || '当前页面'}（${window.location.href}）`,
       `待处理对象：${drafts.length}`,
       sections,
       ...(note ? ['补充：', note] : []),
-      '定位提示：',
-      locationHint,
+      aiHint,
     ].join('\n');
+  }
+
+  function getPromptChangeType(prop: string) {
+    if (prop.startsWith('annotation:')) return 'annotation';
+    if (prop === 'component-spec') return 'component-spec';
+    if (prop.startsWith('component-new-variant:')) return 'component-new-variant';
+    if (prop.startsWith('component-variant-group:')) return 'component-variant-group';
+    if (prop.startsWith('library-token:create')) return 'library-token-create';
+    if (prop.startsWith('library-token:update')) return 'library-token-update';
+    if (prop.startsWith('library-token:delete')) return 'library-token-delete';
+    if (prop.startsWith('library-component:create')) return 'library-component-create';
+    if (prop.startsWith('library-component:update')) return 'library-component-update';
+    if (prop.startsWith('library-component:delete')) return 'library-component-delete';
+    return 'style';
+  }
+
+  function getPromptChangeTypes(changes: { prop: string; from: string; val: string }[]) {
+    return Array.from(new Set(changes.map(change => getPromptChangeType(change.prop))));
+  }
+
+  function formatPromptChanges(changes: { prop: string; from: string; val: string }[]) {
+    return changes.map((change, index) => {
+      const type = getPromptChangeType(change.prop);
+      if (type === 'annotation') {
+        return [
+          `${index + 1}. 标注：${change.val || '空'}`,
+        ].join('\n');
+      }
+      return [
+        `${index + 1}. ${getChangeLabel(change.prop)}：${formatStoredChangeRecordValue(change.prop, change.from) || '空'} → ${formatStoredChangeRecordValue(change.prop, change.val) || '空'}`,
+      ].join('\n');
+    }).join('\n');
+  }
+
+  function debugAiPrompt(prompt: string, source: 'single' | 'draft-basket' | 'plugin') {
+    window.__DEV_INSPECTOR_LAST_PROMPT__ = prompt;
+    console.groupCollapsed(`[DevInspector] AI prompt (${source})`);
+    console.log(prompt);
+    console.groupEnd();
   }
 
   function handleSubmitToAi() {
@@ -5253,9 +5574,10 @@ export function InspectorPanel({
       changes,
       note,
     });
+    debugAiPrompt(prompt, 'single');
     copyTextToClipboard(prompt)
       .then((copied) => {
-        setSubmitMsg(copied ? '任务文本已复制 ✓' : '复制失败');
+        setSubmitMsg(copied ? '已复制' : '复制失败');
         setTimeout(() => setSubmitMsg(''), copied ? 2200 : 1800);
       })
       .catch(() => {
@@ -5266,9 +5588,10 @@ export function InspectorPanel({
 
   function copyDraftEntriesToAi(draftEntries: LocalDraftEntry[]) {
     const prompt = buildAiDraftBasketPrompt(draftEntries);
+    debugAiPrompt(prompt, 'draft-basket');
     copyTextToClipboard(prompt)
       .then((copied) => {
-        setSubmitMsg(copied ? '任务文本已复制 ✓' : '复制失败');
+        setSubmitMsg(copied ? '已复制' : '复制失败');
         setTimeout(() => setSubmitMsg(''), copied ? 2200 : 1800);
       })
       .catch(() => {
@@ -5490,6 +5813,9 @@ export function InspectorPanel({
   });
 
   function getChangeLabel(prop: string) {
+    if (prop.startsWith('annotation:')) {
+      return '标注 · AI识别';
+    }
     if (prop.startsWith('library-token:') || prop.startsWith('library-component:')) {
       const [resource = '', action = '', name = '未命名'] = prop.split(':');
       const resourceLabel = resource === 'library-token' ? 'Token' : '组件规格';
@@ -5620,6 +5946,7 @@ export function InspectorPanel({
   function resetDraftChangeOnPage(draft: LocalDraftEntry, change: LocalDraftChange) {
     const isCurrentDraft = selectedRef.current ? getDraftTargetInfo(selectedRef.current).key === draft.key : false;
     if (isCurrentDraft) clearPendingForProp(change.prop);
+    if (change.prop.startsWith('annotation:')) return;
     if (change.prop.startsWith('library-')) return;
     if (change.prop === 'component-spec' || change.prop.startsWith('component-new-variant:')) return;
 
@@ -5950,6 +6277,36 @@ export function InspectorPanel({
   const activeBadgeStatus = pendingBadgeStatus || badgeStatusVal;
   const activeCardVariant = pendingCardVariant || cardVariantVal;
   const componentSizeOptions = getComponentSizeControlOptions(componentCapability);
+  const componentPrimaryText = pendingComponentText
+    ?? componentTextDraft
+    ?? componentTextVal
+    ?? componentEditableSlots
+      .map(slot => componentTextSlotDrafts[slot.key] || componentTextSlotVals[slot.key] || '')
+      .find(Boolean)
+    ?? textContent
+    ?? '';
+  const componentElementInfos: ComponentElementInfo[] = componentMeta ? (() => {
+    const items: ComponentElementInfo[] = [];
+    const seen = new Set<Element>();
+    const pushItem = (label: string, element: Element | null) => {
+      if (!element || seen.has(element)) return;
+      seen.add(element);
+      items.push({
+        key: `${label}:${getSelectorForScope(element, 'current')}`,
+        label,
+        selector: getSelectorForScope(element, 'current'),
+        text: (element.textContent ?? '').trim() || '空',
+        style: getComponentElementStyleSummary(element),
+        spacing: getComponentElementSpacingSummary(element),
+        styleStatus: getComponentElementStyleStatus(element, tokenMap, colorPalette, tokenLabels, typographyTokens),
+        spacingStatus: getComponentElementSpacingStatus(element, spaceSteps),
+      });
+    };
+    pushItem('组件外层', selected);
+    componentEditableSlots.forEach(slot => pushItem(slot.label, getComponentSlotElement(selected, slot)));
+    componentChildSlots.forEach(slot => pushItem(slot.label, getComponentSlotElement(selected, slot)));
+    return items;
+  })() : [];
   const showElementStyleSections = !componentMeta;
   const localDraftEntries = Object.values(localDrafts).sort((a, b) => b.updatedAt - a.updatedAt);
   const localDraftChangeCount = localDraftEntries.reduce((sum, entry) => sum + entry.changes.length, 0);
@@ -6425,7 +6782,7 @@ export function InspectorPanel({
           ref={panelElRef}
           className={`di-panel${componentCreateOpen || libraryOpen ? ' di-panel--drawer-open' : ''}${libraryWorkbenchOpen ? ' di-panel--workbench-open' : ''}`}
           data-di-panel-role="primary"
-          style={{ top: panelPos.top, left: panelPos.left }}
+          style={{ top: panelPos.top, left: panelPos.left, ...inspectorTypographyVars }}
         >
 
           {/* 顶部 */}
@@ -6925,7 +7282,7 @@ export function InspectorPanel({
                             disabled={localDraftChangeCount === 0}
                             onClick={handleSubmitToAi}
                           >
-                            {submitMsg || '发送给AI'}
+                            {renderSubmitLabel(submitMsg)}
                           </button>
                         </div>
                         <div className="di-library-workbench-table" role="table" aria-label="修改篮列表">
@@ -7203,7 +7560,7 @@ export function InspectorPanel({
                           <div><dt>链路</dt><dd>只生成 AI 任务，不直接写源码</dd></div>
                         </dl>
                         <div className="di-library-detail-actions">
-                          <button type="button" onClick={handleSubmitToAi} disabled={localDraftChangeCount === 0}>{submitMsg || '发送给AI'}</button>
+                          <button type="button" onClick={handleSubmitToAi} disabled={localDraftChangeCount === 0}>{renderSubmitLabel(submitMsg)}</button>
                         </div>
                       </div>
                     ) : (
@@ -7229,7 +7586,7 @@ export function InspectorPanel({
                         disabled={localDraftChangeCount === 0}
                         onClick={handleSubmitToAi}
                       >
-                        {submitMsg || '发送给AI'}
+                        {renderSubmitLabel(submitMsg)}
                       </button>
                     </div>
                   </aside>
@@ -7839,14 +8196,86 @@ export function InspectorPanel({
                 <div className="di-component-card">
                   <div className="di-component-head">
                     <div className="di-component-main">
-                      <span className="di-component-name">{componentDisplayName}</span>
+                      <div className="di-component-title-row">
+                        <span className="di-component-name">{componentDisplayName}</span>
+                        <MatchBadge
+                          label={componentCapability ? '已匹配' : '待补充'}
+                          tone={componentCapability ? 'matched' : 'pending'}
+                          tooltip={componentCapability
+                            ? '已匹配到可复用规则，可按组件方式查看和处理。'
+                            : '当前还没有可复用规则，先按当前样式处理，后续可补充到设计库。'}
+                        />
+                      </div>
                     </div>
+                      <button
+                        type="button"
+                        className={`di-component-meta-toggle${componentInfoOpen ? ' di-component-meta-toggle--on' : ''}`}
+                        onClick={() => setComponentInfoOpen(open => !open)}
+                        aria-expanded={componentInfoOpen}
+                        aria-label={componentInfoOpen ? '收起元素信息' : '查看元素信息'}
+                        title={componentInfoOpen ? '收起元素信息' : '查看元素信息'}
+                      >
+                        <span>元素信息</span>
+                        <ChevronDown size={14} strokeWidth={2.2} aria-hidden="true" />
+                      </button>
                   </div>
-                  <div className="di-component-meta-row">
-                    {showComponentVariantMeta && (
-                      <span>{componentCapability?.variantKind === 'card' ? '展示' : '变体'}：{componentCapability?.variantKind === 'card' ? getCardDisplayLabel(componentMeta.variant) : componentMeta.variant}</span>
+                  <div className="di-component-meta-block">
+                    {componentInfoOpen && (
+                      <div className="di-component-info-panel">
+                        {componentElementInfos.length > 0 && (
+                          <div className="di-component-info-elements">
+                            <div className="di-component-info-element-list">
+                              {componentElementInfos.map(item => (
+                                <section className="di-component-info-element-card" key={item.key}>
+                                  <div className="di-component-info-element-head">
+                                    <span className="di-component-info-element-label">{item.label}</span>
+                                    <span className="di-component-info-element-selector" title={item.selector}>{item.selector}</span>
+                                  </div>
+                                  <dl className="di-component-info-element-meta">
+                                    <div className="di-component-info-row">
+                                      <dt>内容</dt>
+                                      <dd title={item.text}>{item.text}</dd>
+                                    </div>
+                                    <div className="di-component-info-row">
+                                      <dt>样式</dt>
+                                      <dd title={item.style}>
+                                        <span className="di-component-info-inline">
+                                          <span>{item.style}</span>
+                                          <MatchBadge
+                                            label={item.styleStatus === 'token' ? 'Token' : '真实值'}
+                                            tone={item.styleStatus}
+                                            tooltip={item.styleStatus === 'token'
+                                              ? '当前值已映射到设计 token。'
+                                              : '当前展示的是页面实际样式值，尚未映射到设计 token 或组件规则。'}
+                                          />
+                                        </span>
+                                      </dd>
+                                    </div>
+                                    <div className="di-component-info-row">
+                                      <dt>间距</dt>
+                                      <dd title={item.spacing}>
+                                        <span className="di-component-info-inline">
+                                          <span>{item.spacing}</span>
+                                          {item.spacingStatus && (
+                                            <MatchBadge
+                                              label={item.spacingStatus === 'token' ? 'Token' : '真实值'}
+                                              tone={item.spacingStatus}
+                                              tooltip={item.spacingStatus === 'token'
+                                                ? '当前值已映射到设计 token。'
+                                                : '当前展示的是页面实际样式值，尚未映射到设计 token 或组件规则。'}
+                                            />
+                                          )}
+                                        </span>
+                                      </dd>
+                                    </div>
+                                  </dl>
+                                </section>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     )}
-                    <span>状态：{getComponentStateLabel(componentMeta.state)}</span>
                   </div>
                   {componentCapability && (
                     <div className="di-component-fields">
@@ -7866,21 +8295,43 @@ export function InspectorPanel({
                           <div className="di-component-child-list">
                             {visibleChildSlots.map(({ slot, value, element }) => {
                               const childMeta = element ? getInspectorComponentMeta(element) : null;
+                              const childCapability = getComponentCapability(childMeta);
                               const childName = childMeta ? getComponentDisplayName(childMeta) : slot.label;
                               const childValue = value || childMeta?.variant || childName;
                               const showChildLabel = visibleChildSlots.length > 1;
+                              const childBadgeStatus = element && childCapability?.statusKind === 'badge'
+                                ? inferBadgeStatus(getClasses(element))
+                                : null;
                               return (
                               <div className={`di-component-child-item${showChildLabel ? ' di-component-child-item--with-label' : ''}`} key={slot.key}>
                                 {showChildLabel && <span className="di-component-child-label">{slot.label}</span>}
-                                <span className="di-component-child-value">{childValue}</span>
-                                <button
-                                  type="button"
-                                  className="di-component-child-select"
-                                  onClick={() => { if (element) selectEl(element); }}
-                                  title={`选择 ${childName}`}
-                                >
-                                  选择
-                                </button>
+                                {element && childCapability?.statusKind === 'badge' ? (
+                                  <div className="di-component-child-variant-grid" role="group" aria-label={`${childName} 状态`}>
+                                    {BADGE_STATUS_OPTIONS.map(option => (
+                                      <button
+                                        key={option.key}
+                                        type="button"
+                                        className={`di-component-child-variant-tile${childBadgeStatus === option.key ? ' di-component-child-variant-tile--on' : ''}`}
+                                        onClick={() => updateBadgeStatusOnElement(element, option.key)}
+                                        title={`${childName} · ${option.label}`}
+                                      >
+                                        {option.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <>
+                                    <span className="di-component-child-value">{childValue}</span>
+                                    <button
+                                      type="button"
+                                      className="di-component-child-select"
+                                      onClick={() => { if (element) selectEl(element); }}
+                                      title={`选择 ${childName}`}
+                                    >
+                                      选择
+                                    </button>
+                                  </>
+                                )}
                               </div>
                               );
                             })}
@@ -7951,12 +8402,12 @@ export function InspectorPanel({
                       {componentCapability.statusKind === 'badge' && (
                         <div className="di-component-field">
                           <span>状态</span>
-                          <div className="di-component-segment di-component-segment--tone" role="group" aria-label="标签状态">
+                          <div className="di-component-variant-grid" role="group" aria-label="标签状态">
                             {BADGE_STATUS_OPTIONS.map(option => (
                               <button
                                 key={option.key}
                                 type="button"
-                                className={`di-component-segment-btn${activeBadgeStatus === option.key ? ' di-component-segment-btn--on' : ''}`}
+                                className={`di-component-variant-tile${activeBadgeStatus === option.key ? ' di-component-variant-tile--on' : ''}`}
                                 onClick={() => updateBadgeStatus(option.key)}
                               >
                                 {option.label}
@@ -9098,6 +9549,45 @@ export function InspectorPanel({
               </>
             )}
 
+            <div className="di-section di-annotation-section">
+              <div className={`di-section-title-row di-section-title-row--action${annotationOpen ? '' : ' di-section-title-row--empty'}`}>
+                <div className="di-section-title-group">
+                  <div className="di-section-title">标注</div>
+                  {localDraftEntries.some(entry => entry.changes.some(change => change.prop.startsWith('annotation:'))) && (
+                    <span className="di-annotation-count">已记录</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="di-section-icon-action"
+                  onClick={() => setAnnotationOpen(open => !open)}
+                  title={annotationOpen ? '收起标注' : '添加标注'}
+                  aria-label={annotationOpen ? '收起标注' : '添加标注'}
+                >
+                  {annotationOpen ? <Minus size={14} strokeWidth={2.4} aria-hidden="true" /> : <Plus size={14} strokeWidth={2.4} aria-hidden="true" />}
+                </button>
+              </div>
+              {annotationOpen && (
+                <div className="di-annotation-card">
+                  <label className="di-annotation-row di-annotation-row--text">
+                    <textarea
+                      className="di-annotation-textarea"
+                      value={annotationText}
+                      placeholder="直接写你的想法，例如：这里要保持高亮但不要用实底主按钮样式。AI 会判断这是设计说明、产品规则还是开发备注。"
+                      rows={2}
+                      onChange={event => {
+                        const nextText = event.currentTarget.value;
+                        setAnnotationText(nextText);
+                        updateAnnotationDraft(nextText);
+                        resizeTextareaToContent(event.currentTarget);
+                      }}
+                      ref={(node) => { if (node) resizeTextareaToContent(node); }}
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+
             <div className="di-section">
               <div className="di-section-title">本次修改内容 {localDraftChangeCount}</div>
               <div className="di-inbox-summary">
@@ -9246,7 +9736,7 @@ export function InspectorPanel({
               disabled={!hasPending}
               style={!hasPending ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
               title="复制一段可直接发给 AI 的任务文本"
-            >{submitMsg || '发送给AI'}</button>
+            >{renderSubmitLabel(submitMsg)}</button>
           </div>
             );
           })()}
@@ -9286,155 +9776,6 @@ export function InspectorPanel({
 }
 
 // ─── 主组件：管理 active + panels 数组 ───────────────────────────
-type FileEntry = { name: string; desc: string };
-
-const CODE_FILES: FileEntry[] = [
-  { name: 'src/',           desc: 'React 组件、页面、样式源码（不含调试工具）' },
-  { name: 'index.html',     desc: '应用入口 HTML' },
-  { name: 'package.json',   desc: '依赖包与脚本配置' },
-  { name: 'tsconfig.json',  desc: 'TypeScript 编译配置' },
-  { name: 'vite.config.ts', desc: '构建工具配置' },
-];
-
-const PRODUCT_FILES: FileEntry[] = [
-  { name: 'docs/PRODUCT_PLAN.md',     desc: '产品规划与路线图' },
-  { name: 'docs/PROJECT.md',          desc: '项目背景与目标概述' },
-  { name: 'docs/DECISIONS.md',        desc: '关键产品决策记录' },
-  { name: 'docs/CHANGELOG.md',        desc: '功能迭代变更日志' },
-  { name: 'docs/CODE_STRUCTURE.md',   desc: '前端目录结构说明' },
-  { name: 'docs/DESIGN_STANDARDS.md', desc: '设计规范总览' },
-];
-
-const DESIGN_FILES: FileEntry[] = [
-  { name: 'docs/design/OVERVIEW.md',            desc: '设计系统总览' },
-  { name: 'docs/design/tokens.md',              desc: 'Design Token 使用说明' },
-  { name: 'docs/design/layout.md',              desc: '页面布局规范' },
-  { name: 'docs/design/component-index.md',     desc: '组件清单索引' },
-  { name: 'docs/design/business-components.md', desc: '业务组件说明' },
-];
-
-function FileList({ files }: { files: FileEntry[] }) {
-  return (
-    <ul className="di-dl-file-list">
-      {files.map(f => (
-        <li key={f.name}>
-          <span className="di-dl-file-name">{f.name}</span>
-          <span className="di-dl-file-desc">{f.desc}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-type DlStatus = 'idle' | 'packing' | 'done' | 'error';
-
-function DownloadButton() {
-  const { endpoints } = useDevInspectorConfig();
-  const [open, setOpen]       = useState(false);
-  const [status, setStatus]   = useState<DlStatus>('idle');
-  const [filePath, setFilePath] = useState('');
-  const [details, setDetails] = useState({ code: false, product: false, design: false });
-  const [opts, setOpts]       = useState({ code: true, product: false, design: false });
-
-  function toggle(k: keyof typeof opts) {
-    setOpts(prev => ({ ...prev, [k]: !prev[k] }));
-  }
-  function toggleDetail(k: keyof typeof details) {
-    setDetails(prev => ({ ...prev, [k]: !prev[k] }));
-  }
-  function handleOpen() {
-    setOpen(v => !v);
-    if (open) setStatus('idle');
-  }
-
-  async function download() {
-    if (!opts.code && !opts.product && !opts.design) return;
-    setStatus('packing');
-    try {
-      const params = new URLSearchParams({
-        code:    opts.code    ? '1' : '0',
-        product: opts.product ? '1' : '0',
-        design:  opts.design  ? '1' : '0',
-      });
-      const res  = await fetch(`${endpoints.handoff}?${params}`);
-      const json = await res.json();
-      if (!json.ok) throw new Error(json.error);
-      setFilePath(json.path);
-      setStatus('done');
-    } catch {
-      setStatus('error');
-    }
-  }
-
-  async function revealInFinder() {
-    await fetch(`${endpoints.reveal}?path=${encodeURIComponent(filePath)}`);
-  }
-
-  const sections = [
-    { key: 'code' as const,    label: '前端代码', files: CODE_FILES },
-    { key: 'product' as const, label: '产品文档', files: PRODUCT_FILES },
-    { key: 'design' as const,  label: '设计文档', files: DESIGN_FILES },
-  ];
-
-  return (
-    <>
-      <button className="di-dl-btn" onClick={handleOpen}>下载</button>
-
-      {open && (
-        <div className="di-dl-modal">
-          <div className="di-dl-title">选择下载内容</div>
-
-          {status === 'packing' && (
-            <div className="di-dl-status">
-              <span className="di-dl-spinner" />
-              正在打包，请稍候…
-            </div>
-          )}
-
-          {status === 'done' && (
-            <div className="di-dl-done">
-              <div className="di-dl-done-check">✓ 已保存至桌面</div>
-              <div className="di-dl-done-path">{filePath.replace(/.*\//, '')}</div>
-              <button className="di-dl-reveal-btn" onClick={revealInFinder}>
-                在 Finder 中显示
-              </button>
-            </div>
-          )}
-
-          {status === 'error' && (
-            <div className="di-dl-status di-dl-status--error">打包失败，请查看控制台</div>
-          )}
-
-          {(status === 'idle' || status === 'error') && (<>
-            {sections.map(({ key, label, files }) => (
-              <div key={key}>
-                <div className="di-dl-row">
-                  <label className="di-dl-check-label">
-                    <input type="checkbox" checked={opts[key]} onChange={() => toggle(key)} />
-                    {label}
-                  </label>
-                  <button className="di-dl-detail-btn" onClick={() => toggleDetail(key)}>
-                    {details[key] ? '收起' : '详情'}
-                  </button>
-                </div>
-                {details[key] && <FileList files={files} />}
-              </div>
-            ))}
-
-            <button
-              className="di-dl-confirm"
-              onClick={download}
-              disabled={!opts.code && !opts.product && !opts.design}
-            >
-              下载
-            </button>
-          </>)}
-        </div>
-      )}
-    </>
-  );
-}
-
 export default function DevInspector() {
   const [active, setActive] = useState(false);
   const [tokenMap, setTokenMap] = useState<Record<string, string>>({});
@@ -9462,22 +9803,27 @@ export default function DevInspector() {
   useEffect(() => {
     const onOver = (e: MouseEvent) => {
       if (!active || modalOpenRef.current) return;
-      const el = e.target as Element;
-      if (!el?.classList) return;
-      if (isInsidePanel(el)) { el.classList.remove('di-hover'); return; }
-      el.classList.add('di-hover');
+      const raw = e.target as Element;
+      if (!raw?.classList) return;
+      if (isInsidePanel(raw)) { raw.classList.remove('di-hover'); return; }
+      document.querySelectorAll('.di-hover').forEach(item => item.classList.remove('di-hover'));
+      resolveSelectionTarget(raw).classList.add('di-hover');
     };
-    const onOut = (e: MouseEvent) => { (e.target as Element)?.classList?.remove('di-hover'); };
+    const onOut = () => {
+      document.querySelectorAll('.di-hover').forEach(item => item.classList.remove('di-hover'));
+    };
     const onClick = (e: MouseEvent) => {
       if (!active || modalOpenRef.current) return;
-      const el = e.target as Element;
-      if (isInsidePanel(el)) return;
+      const raw = e.target as Element;
+      if (!raw?.classList) return;
+      if (isInsidePanel(raw)) return;
       e.preventDefault(); e.stopPropagation();
-      el.classList.remove('di-hover');
+      const target = resolveSelectionTarget(raw);
+      document.querySelectorAll('.di-hover').forEach(item => item.classList.remove('di-hover'));
       setPanels(prev =>
         prev.length === 0
-          ? [{ id: 'main', el }]
-          : prev.map((p, i) => i === 0 ? { ...p, el } : p)
+          ? [{ id: 'main', el: target }]
+          : prev.map((p, i) => i === 0 ? { ...p, el: target } : p)
       );
     };
     document.addEventListener('mouseover', onOver, true);
@@ -9524,8 +9870,6 @@ export default function DevInspector() {
 
   return (
     <>
-      <DownloadButton />
-
       <button
         className={`di-trigger${active ? ' di-trigger--on' : ''}`}
         onClick={() => { setActive(v => !v); if (active) setPanels([]); }}

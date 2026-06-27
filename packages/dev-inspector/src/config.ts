@@ -1,5 +1,6 @@
 // ─── 类型 ────────────────────────────────────────────────────
 import type { ReactNode } from 'react';
+import inspectorTypography from './tokens/typography.json';
 
 export type PaletteColor = { label: string; val: string; token: string };
 export type PaletteGroup = { group: string; colors: PaletteColor[] };
@@ -46,6 +47,21 @@ export type TypographyToken = {
   fontWeight: string;
   color: string;
   usage: string;
+};
+
+export type InspectorTypographyLevel = {
+  fontSize: string;
+  fontWeight: string;
+  lineHeight: string;
+  color: string;
+};
+
+export type InspectorTypographyTokens = {
+  title: InspectorTypographyLevel;
+  sectionLabel: InspectorTypographyLevel;
+  body: InspectorTypographyLevel;
+  meta: InspectorTypographyLevel;
+  tinyBadge: InspectorTypographyLevel;
 };
 
 export type RadiusPreset = {
@@ -107,6 +123,7 @@ export type DevInspectorEndpoints = {
 export type DevInspectorTokenConfig = {
   colorPalette: PaletteGroup[];
   tokenLabels: Record<string, string>;
+  inspectorTypography: InspectorTypographyTokens;
   radiusPresets: RadiusPreset[];
   spaceSteps: SpaceStep[];
   borderWidthSteps: string[];
@@ -235,6 +252,7 @@ const FALLBACK_SHADOW_TOKENS: ShadowToken[] = [
 const FALLBACK_TOKENS: DevInspectorTokenConfig = {
   colorPalette: [],
   tokenLabels: {},
+  inspectorTypography: inspectorTypography as InspectorTypographyTokens,
   radiusPresets: [
     { label: '无',  sub: '',     value: '0px',  token: '' },
     { label: 'S',   sub: '4px',  value: '4px',  token: '' },

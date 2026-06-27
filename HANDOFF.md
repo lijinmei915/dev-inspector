@@ -8,12 +8,16 @@
 
 - 当前做到：组件模式默认面板和 `Component Capability Registry` 已实现；Button / Icon / Badge / Card 已有组件级白名单属性；Card 已改为真实变体，并开放当前实例的标题/说明文可编辑内容，状态标签作为子组件入口可继续选中；面板视觉已收敛为 `发送给AI` 单主按钮；组件命名已按 source selector / display name / attributes 三层记录；`本次修改内容` 已改为跨对象本地草稿篮；Inspector 内部插件区只保留 `组件制作`，产品心智独立、技术上先内置在 DevInspector 包内；当前组件制作 MVP 收口为“普通元素创建组件规格”：底部 `创建组件` 打开轻量抽屉，先确认 `容器`，再按容器展示有限 `用途` 推荐，并联动生成组件名和使用场景后写入 `本次修改内容`；`归类` 已定义为对象职责路径，例如 `页面 / 标题`、`列表 / 功能列表`，不再混入全量已有组件列表，也不维护无限用途枚举；同一归类已有组件时提示 `复用已有组件 / 新建同类组件`；`可改内容` 已改为自动识别字段列表，子组件或固定封装内容以只读项展示；暂不做组件库浏览、多变体、加入已有组件或基于当前组件生成新组件；样式复用统一走 `复制样式` -> `本次修改内容` -> `发送给AI`。
 - 新增：面板顶部已接入 `Library / 设计库` 固定入口；第一版提供轻量抽屉和 Admin Shell 全开管理页。全开页包含 `Tokens`、`Components`、`Changes`、`Usage` 四个主导航，支持详情 / 编辑表单、修改篮复核、使用治理，以及 Tokens / Components 的受控新增 / 编辑 / 删除草稿。Components 已从纯表格改为按分类筛选，并在中间区域优先展示宿主通过 `componentPreviews` 注入的真实组件预览卡片；真实组件实例已支持规格级选中，右侧按具体规格展示用途、能力项、props、selector、token 绑定和业务页面使用次数。
+- 新增：外部项目接入方向已补成“轻声明 + 自动识别 + 人工确认映射”的三段式草案；当前只写进 `docs/product/PRD.md` / `docs/product/INTERACTION_SPEC.md`，不进入实现。
 - 对外接入：`@lijinmei-810/dev-inspector` 和 `@lijinmei-810/dev-inspector-vite` 已补包内 README，明确 runtime panel / Vite plugin 双包组合和 AI 安装提示，避免外部项目误搜 `vite-plugin-dev-inspector` 或 `dev-inspector-vite-plugin`。
 - 当前阻塞：无明确阻塞；Input / Textarea / IconButton 等组合组件尚未进入能力表。
 - 是否可继续：可以继续按能力表补更多组件类型，或继续验证普通 DOM 外层样式模块的边界。
 
 ## 本次已完成
 
+- `docs/design/tokens.md` 新增 Inspector 最小文字层级：Title / Section label / Body / Meta / Tiny badge，明确 placeholder 归 `Meta`、输入后正文归 `Body`；同时声明运行时 SSOT 为 `packages/dev-inspector/src/tokens/typography.json`。
+- `packages/dev-inspector/src/tokens/typography.json` 新增 Inspector 文字层级运行时单一数据源；`packages/dev-inspector/src/config.ts` 已接入并暴露 `inspectorTypography`。
+- `packages/dev-inspector/src/DevInspector.tsx` 现在把 `inspectorTypography` 作为 CSS 变量注入面板根节点；`packages/dev-inspector/src/dev-inspector.css` 不再平行维护一套 `:root` 文字主值，标注 textarea 已改为正文层，placeholder 改为辅助文案层。
 - `PROJECT.md` 增加当前产品定位、SSOT 索引、当前模块、进度、已知问题和下一步重点。
 - `docs/DECISIONS.md` 增加分类索引，并把“组件模式默认、普通元素样式分层”归入 `Product Interaction`。
 - `docs/design/component-index.md` 增加 Inspector 模块交互、相同元素规则和 Button/Icon/Text/Container/Card 的初始交互白名单。
@@ -52,7 +56,10 @@
 - 普通结构块规则已补齐：除重复集合 / 列表网格容器外，`demo-shell`、`demo-block`、`demo-block-head` 这类符合结构容器特征的普通对象都不再进入结构摘要模式，不展示“页面级容器 / 建议沉淀为组件 / 子元素 / 整体样式 / 子文本样式”，直接进入普通样式模块。
 - 颜色 token 下拉已拆成上方色板滚动区和底部固定 footer row：自定义输入区始终贴在弹层底部，不随色板内容滚走；外层下拉不再额外叠加底部 padding，footer 上下留白一致；色块、hex 和透明度输入对齐间距区 compact 数值输入高度；底部色块可点击打开颜色选择并写回当前颜色；色块按钮清掉原生 padding 且不使用 scale hover；色板选中态改为“外层槽位 ring + 内层色块”，避免压住相邻行，同时不缩小色块本体。
 - 创建组件抽屉已改为固定头尾 + 中间滚动：底部 `发送给AI` 始终完整留在抽屉内，内容过长时只滚动摘要 / 字段 / 规则区域，避免按钮被面板底部卡住。
+- Dev Inspector 页面右下角全局悬浮入口只保留紫色 `编辑 / 退出`；原黑色 `下载` 悬浮按钮及其下载弹窗已移除，避免与业务按钮混淆。
 - 顶部 `Library / 设计库` 已接入面板：入口与 `创建组件` 抽屉互斥，`Tokens` 页展示 token 列表、搜索、分类和使用次数；`Components` 页在全开管理页中按 `全部 / 操作 / 展示 / 反馈 / 容器 / 表单 / 图标 / 自定义` 分类筛选，中间展示宿主注入的 `DemoButton` / `DemoBadge` / `DemoTaskCard` / `DemoForm` / `DemoIcon` 真实组件实例，其中 Button / Badge / Icon 按能力表展示全部变体、状态、颜色和尺寸组合，Card 展示全部展示变体；预览中的每个真实规格实例可单独选中，右侧展示该规格的预览、用途、能力项、props、selector、token 绑定和业务页面使用次数；所有增删改先写入 `本次修改内容`，不直接改源码。
+- 组件已作为选择边界处理：点击 Card 等已识别组件内部未登记的标题、说明文或普通包装 DOM，会选中组件外框；内部内容通过组件能力字段编辑，只有已登记的 Badge / Button / Icon / Form input 等子组件入口可以继续单独选中。
+- 样式面板新增 `标注` 折叠区：第一版只保留自然语言输入，不展示字段 label、类型下拉、作用范围或记录按钮；输入时实时进入 `本次修改内容`，清空输入自动移除，由 AI 根据内容识别设计说明、产品规则、开发备注、禁止修改或待确认，以及是否影响当前元素、相同元素或所属组件。
 
 ## 风险与待确认
 
@@ -64,6 +71,7 @@
 - Library 的使用次数来自当前页面计算样式扫描，只作为本地页面参考；跨源码使用统计仍未接入。
 - 设计库 CRUD 当前是前端草稿态：新增 / 编辑 / 删除会进入修改篮和 AI 任务文本，但还没有独立持久化设计库 store；刷新页面后 UI 里的草稿列表会回到系统配置。
 - Components 预览当前已接入 `componentPreviews` registry：demo 真实组件从 `packages/demo/src/demo-components.tsx` 注入，Library 渲染同一批 React 组件实例；外部项目接入时仍需要提供自己的 preview registry。规格级详情优先读取 variant 的 `selector`、`usage`、`capabilities`、`tokenRefs`、`status` 元数据，未提供时只做基础推断；使用次数只统计业务页面 DOM，排除 Inspector 预览 DOM。
+- 外部项目接入的优先级已明确：`data-component` / registry > 声明文件 > class / selector / DOM 推断 > computed style 反查；置信度不足时进入待确认。
 
 ## 下一步
 
