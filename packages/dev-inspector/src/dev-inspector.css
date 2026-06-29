@@ -661,6 +661,22 @@
   height: 36px;
 }
 
+.di-library-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.di-library-toolbar-actions .di-btn-save,
+.di-library-toolbar-actions .di-library-workbench-soft-btn {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 104px;
+  height: 36px;
+}
+
 .di-library-workbench-table {
   display: grid;
   gap: 8px;
@@ -1330,6 +1346,7 @@
 }
 
 .di-library-edit-panel,
+.di-library-import-panel,
 .di-library-detail-card {
   display: grid;
   gap: 12px;
@@ -1354,6 +1371,154 @@
 .di-library-edit-panel label {
   display: grid;
   gap: 6px;
+}
+
+.di-library-import-option {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) max-content;
+  align-items: start;
+  column-gap: 12px;
+  row-gap: 8px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #eef2f7;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.di-library-import-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.di-library-import-steps span {
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.di-library-import-option--primary {
+  border-color: #ede9fe;
+  background: #faf5ff;
+}
+
+.di-library-import-option > div {
+  min-width: 0;
+  display: contents;
+}
+
+.di-library-import-option svg {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  justify-self: center;
+  color: #7c3aed;
+}
+
+.di-library-import-option strong {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  min-width: 0;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.di-library-import-option span {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.di-library-import-option button,
+.di-library-import-option input::file-selector-button {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: center;
+  justify-self: end;
+  min-width: 72px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.di-library-import-option button:hover,
+.di-library-import-option button:focus-visible,
+.di-library-import-option input::file-selector-button:hover {
+  border-color: #c4b5fd;
+  color: #7c3aed;
+  outline: none;
+}
+
+.di-library-import-option input {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: center;
+  justify-self: end;
+  width: 78px;
+  max-width: 78px;
+  color: transparent;
+}
+
+.di-library-import-format {
+  margin: 0;
+  padding: 0;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #475569;
+  overflow: auto;
+}
+
+.di-library-import-format summary {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.di-library-import-format pre {
+  margin: 0;
+  padding: 10px;
+  border-top: 1px solid #e5e7eb;
+  color: #475569;
+  font-size: 10px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.di-library-import-msg {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #ede9fe;
+  color: #7c3aed;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .di-library-detail-preview {

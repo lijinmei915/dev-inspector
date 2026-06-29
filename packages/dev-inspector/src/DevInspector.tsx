@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, Check, ChevronDown, CircleHelp, Component as ComponentIcon, Library as LibraryIcon, Minus, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, Check, ChevronDown, CircleHelp, Component as ComponentIcon, Library as LibraryIcon, Minus, Plus, RotateCcw, Trash2, Upload, WandSparkles, X } from 'lucide-react';
 import './dev-inspector.css';
 import { useDevInspectorConfig } from './DevInspectorProvider';
 import type { DevInspectorTokenConfig } from './config';
@@ -1126,6 +1126,18 @@ type LibraryComponentFormDraft = {
   summary: string;
   selector: string;
   status: string;
+};
+
+type ComponentImportDraft = {
+  type: string;
+  label?: string;
+  category?: LibraryComponentItemCategory;
+  summary?: string;
+  selector?: string;
+  status?: string;
+  variants?: string[];
+  sizes?: string[];
+  tokenRefs?: string[];
 };
 
 type LibraryComponentSpecDetail = {
@@ -3327,6 +3339,8 @@ export function InspectorPanel({
   const [selectedLibraryComponentVariantId, setSelectedLibraryComponentVariantId] = useState('');
   const [libraryTokenForm, setLibraryTokenForm] = useState<LibraryTokenFormDraft | null>(null);
   const [libraryComponentForm, setLibraryComponentForm] = useState<LibraryComponentFormDraft | null>(null);
+  const [libraryComponentImportOpen, setLibraryComponentImportOpen] = useState(false);
+  const [libraryComponentImportMsg, setLibraryComponentImportMsg] = useState('');
   const [libraryCustomTokens, setLibraryCustomTokens] = useState<LibraryTokenItem[]>([]);
   const [libraryTokenOverrides, setLibraryTokenOverrides] = useState<Record<string, Partial<LibraryTokenItem>>>({});
   const [libraryDeletedTokenIds, setLibraryDeletedTokenIds] = useState<Record<string, string>>({});
@@ -5351,6 +5365,7 @@ export function InspectorPanel({
   }
 
   function openLibraryComponentCreate() {
+    setLibraryComponentImportOpen(false);
     setLibraryComponentForm({
       mode: 'create',
       category: libraryComponentCategory === 'all' ? 'custom' : libraryComponentCategory,
@@ -5363,6 +5378,7 @@ export function InspectorPanel({
   }
 
   function openLibraryComponentEdit(item: LibraryComponentItem) {
+    setLibraryComponentImportOpen(false);
     setSelectedLibraryComponentId(item.id);
     setLibraryComponentForm({
       mode: 'update',
@@ -5374,6 +5390,109 @@ export function InspectorPanel({
       selector: item.selector,
       status: item.status.includes('草稿') ? item.status : '编辑草稿',
     });
+  }
+
+  function normalizeComponentImportDraft(raw: ComponentImportDraft): LibraryComponentFormDraft {
+    const type = String(raw.type || '').trim() || 'Custom';
+    const category = raw.category || getLibraryComponentCategory(type);
+    const variantText = Array.isArray(raw.variants) && raw.variants.length ? `变体：${raw.variants.join(' / ')}` : '';
+    const sizeText = Array.isArray(raw.sizes) && raw.sizes.length ? `尺寸：${raw.sizes.join(' / ')}` : '';
+    const tokenText = Array.isArray(raw.tokenRefs) && raw.tokenRefs.length ? `Token：${raw.tokenRefs.join(' / ')}` : '';
+    return {
+      mode: 'create',
+      category,
+      type,
+      label: String(raw.label || LIBRARY_COMPONENT_LABELS[type] || type).trim(),
+      summary: String(raw.summary || [variantText, sizeText, tokenText].filter(Boolean).join('；') || '导入组件草稿').trim(),
+      selector: String(raw.selector || `.${type.toLowerCase()}`).trim(),
+      status: String(raw.status || '导入草稿').trim(),
+    };
+  }
+
+  function submitImportedLibraryComponents(drafts: ComponentImportDraft[]) {
+    const normalized = drafts.map(normalizeComponentImportDraft);
+    const nextItems: LibraryComponentItem[] = normalized.map((form, index) => ({
+      id: `draft-component-import:${Date.now()}:${index}:${form.type}`,
+      category: form.category,
+      categoryLabel: getLibraryComponentCategoryLabel(form.category),
+      type: form.type,
+      label: form.label,
+      summary: form.summary,
+      selector: form.selector,
+      status: form.status,
+      source: 'draft',
+    }));
+    if (!nextItems.length) {
+      setLibraryComponentImportMsg('没有识别到组件');
+      setTimeout(() => setLibraryComponentImportMsg(''), 1800);
+      return;
+    }
+    setLibraryCustomComponents(prev => [...nextItems, ...prev]);
+    setSelectedLibraryComponentId(nextItems[0].id);
+    nextItems.forEach(item => {
+      recordLibraryCrudChange({
+        resource: 'component',
+        action: 'create',
+        name: item.type,
+        from: '未登记',
+        val: formatLibraryComponentSummary(item),
+      });
+    });
+    setLibraryComponentImportMsg(`已导入 ${nextItems.length} 个组件草稿`);
+    setTimeout(() => setLibraryComponentImportMsg(''), 2200);
+  }
+
+  async function handleComponentImportFile(file: File | null) {
+    if (!file) return;
+    try {
+      const content = await file.text();
+      const parsed = JSON.parse(content) as { components?: ComponentImportDraft[] } | ComponentImportDraft[];
+      const drafts = Array.isArray(parsed) ? parsed : parsed.components ?? [];
+      submitImportedLibraryComponents(drafts);
+    } catch {
+      setLibraryComponentImportMsg('JSON 解析失败');
+      setTimeout(() => setLibraryComponentImportMsg(''), 1800);
+    }
+  }
+
+  function copyComponentLibraryImportPrompt() {
+    const prompt = [
+      '请为当前项目生成 DevInspector 组件库接入草稿。',
+      '',
+      '目标：',
+      '1. 扫描现有组件源码，识别组件 type、中文 label、selector、变体、尺寸和 tokenRefs。',
+      '2. 优先使用 data-component / registry / 稳定 class；不确定项标为“待确认”。',
+      '3. 输出 componentPreviews registry 或下面这种 JSON 草稿。',
+      '',
+      'JSON 格式：',
+      '{',
+      '  "components": [',
+      '    {',
+      '      "type": "Button",',
+      '      "label": "按钮",',
+      '      "category": "action",',
+      '      "summary": "主按钮、次按钮、弱按钮",',
+      '      "selector": ".button, [data-component=\\"Button\\"]",',
+      '      "variants": ["primary", "secondary", "ghost"],',
+      '      "sizes": ["s", "m", "l"],',
+      '      "tokenRefs": ["--color-brand-primary"],',
+      '      "status": "待确认"',
+      '    }',
+      '  ]',
+      '}',
+      '',
+      '约束：请修改源码层接入，不要直接改 dist 产物。',
+    ].join('\n');
+    debugAiPrompt(prompt, 'plugin');
+    copyTextToClipboard(prompt)
+      .then(copied => {
+        setLibraryComponentImportMsg(copied ? '接入提示已复制' : '复制失败');
+        setTimeout(() => setLibraryComponentImportMsg(''), copied ? 2200 : 1800);
+      })
+      .catch(() => {
+        setLibraryComponentImportMsg('复制失败');
+        setTimeout(() => setLibraryComponentImportMsg(''), 1800);
+      });
   }
 
   function submitLibraryComponentForm() {
@@ -7210,9 +7329,22 @@ export function InspectorPanel({
                             <strong>{filteredLibraryComponentItems.length}</strong>
                             <span>个组件 / {filteredLibraryComponentSpecCount} 个规格</span>
                           </div>
-                          <button type="button" className="di-btn-save" onClick={openLibraryComponentCreate}>
-                            + 组件规格
-                          </button>
+                          <div className="di-library-toolbar-actions">
+                            <button
+                              type="button"
+                              className="di-library-workbench-soft-btn"
+                              onClick={() => {
+                                setLibraryComponentImportOpen(true);
+                                setLibraryComponentForm(null);
+                              }}
+                            >
+                              <Upload size={13} strokeWidth={2.2} aria-hidden="true" />
+                              导入组件库
+                            </button>
+                            <button type="button" className="di-btn-save" onClick={openLibraryComponentCreate}>
+                              + 组件规格
+                            </button>
+                          </div>
                         </div>
                         <div className="di-library-component-preview-grid" role="list" aria-label="组件真实预览">
                           {filteredLibraryComponentItems.map(item => {
@@ -7459,7 +7591,68 @@ export function InspectorPanel({
                         <div className="di-library-workbench-empty">选择一个 token 查看详情</div>
                       )
                     ) : libraryTab === 'components' ? (
-                      libraryComponentForm ? (
+                      libraryComponentImportOpen ? (
+                        <div className="di-library-import-panel">
+                          <div className="di-library-edit-head">
+                            <strong>导入组件库</strong>
+                            <button type="button" className="di-head-icon-btn" onClick={() => setLibraryComponentImportOpen(false)} aria-label="关闭导入组件库">
+                              <X size={15} strokeWidth={2.2} aria-hidden="true" />
+                            </button>
+                          </div>
+                          <div className="di-library-import-steps">
+                            <span>选一种方式</span>
+                            <span>生成接入草稿</span>
+                            <span>发送给 AI 落地</span>
+                          </div>
+                          <div className="di-library-import-option di-library-import-option--primary">
+                            <div>
+                              <WandSparkles size={15} strokeWidth={2.2} aria-hidden="true" />
+                              <strong>让 AI 帮你整理</strong>
+                              <span>适合第一次接入。会复制一段提示，让 AI 扫描项目并生成组件清单。</span>
+                            </div>
+                            <button type="button" onClick={copyComponentLibraryImportPrompt}>复制提示</button>
+                          </div>
+                          <label className="di-library-import-option">
+                            <div>
+                              <Upload size={15} strokeWidth={2.2} aria-hidden="true" />
+                              <strong>已有组件清单</strong>
+                              <span>上传 JSON 后先变成草稿，不会直接改源码。</span>
+                            </div>
+                            <input
+                              type="file"
+                              accept="application/json,.json"
+                              onChange={event => {
+                                void handleComponentImportFile(event.currentTarget.files?.[0] ?? null);
+                                event.currentTarget.value = '';
+                              }}
+                            />
+                          </label>
+                          <div className="di-library-import-option">
+                            <div>
+                              <ComponentIcon size={15} strokeWidth={2.2} aria-hidden="true" />
+                              <strong>先加一个试试</strong>
+                              <span>只登记一个组件，比如 Button 或 Card。</span>
+                            </div>
+                            <button type="button" onClick={openLibraryComponentCreate}>添加组件</button>
+                          </div>
+                          <details className="di-library-import-format">
+                            <summary>查看 JSON 格式</summary>
+                            <pre>{`{
+  "components": [
+    {
+      "type": "Button",
+      "label": "按钮",
+      "category": "action",
+      "selector": ".button",
+      "variants": ["primary", "secondary"],
+      "tokenRefs": ["--color-brand-primary"]
+    }
+  ]
+}`}</pre>
+                          </details>
+                          {libraryComponentImportMsg ? <div className="di-library-import-msg">{libraryComponentImportMsg}</div> : null}
+                        </div>
+                      ) : libraryComponentForm ? (
                         <div className="di-library-edit-panel">
                           <div className="di-library-edit-head">
                             <strong>{libraryComponentForm.mode === 'create' ? '新增组件规格' : '编辑组件规格'}</strong>

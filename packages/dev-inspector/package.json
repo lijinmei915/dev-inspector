@@ -1,6 +1,6 @@
 {
   "name": "@lijinmei-810/dev-inspector",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "可视化 CSS 检查与编辑工具（React 组件）",
   "license": "MIT",
   "type": "module",
@@ -33,7 +33,12 @@
   "publishConfig": {
     "access": "public"
   },
-  "keywords": ["devtools", "css-inspector", "react", "vite"],
+  "keywords": [
+    "devtools",
+    "css-inspector",
+    "react",
+    "vite"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lijinmei915/dev-inspector.git",
